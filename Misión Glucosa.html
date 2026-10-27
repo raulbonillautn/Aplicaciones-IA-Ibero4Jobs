@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Misión Glucosa</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#E4F2F0;--card:#fff;--ink:#17323A;--mut:#4A666D;--teal:#0F6B6B;--on:#fff;--ok:#237A32;--okbg:#DDF3E0;--bad:#C93A45;--badbg:#FBE1E3;--sun:#F2B33D;--line:#B9D6D2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F2327;--card:#17343A;--ink:#E8F4F2;--mut:#9DBBC0;--teal:#5CC4BE;--on:#0F2327;--ok:#6BD07A;--okbg:#1B4426;--bad:#FF8089;--badbg:#4A2328;--sun:#F6C55F;--line:#2B5058;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F2327;--card:#17343A;--ink:#E8F4F2;--mut:#9DBBC0;--teal:#5CC4BE;--on:#0F2327;--ok:#6BD07A;--okbg:#1B4426;--bad:#FF8089;--badbg:#4A2328;--sun:#F6C55F;--line:#2B5058;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 1rem/1.5 "Atkinson Hyperlegible",system-ui,sans-serif}
+h1,h2,h3{font-family:Fredoka,"Trebuchet MS",sans-serif;font-weight:600;line-height:1.15;margin:0}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+header h1{font-size:1.7rem;color:var(--teal)}
+.hud{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chip{background:var(--card);border:2px solid var(--line);border-radius:999px;padding:4px 14px;font-weight:700;white-space:nowrap}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media(max-width:820px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px}
+aside{display:grid;gap:16px}
+aside h2{font-size:1.15rem;margin-bottom:10px}
+.btn{font:600 1.05rem Fredoka,sans-serif;background:var(--teal);color:var(--on);border:0;border-radius:12px;padding:10px 20px;cursor:pointer}
+.btn.alt{background:transparent;color:var(--teal);border:2px solid var(--teal)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+input{font:inherit;padding:10px 12px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);width:100%;max-width:300px}
+.rules{padding-left:1.2rem;color:var(--mut);max-width:60ch}
+.missions{display:grid;gap:10px;margin-top:12px}
+.m{display:flex;align-items:center;gap:12px;border:2px solid var(--line);border-radius:14px;padding:10px 14px}
+.m .ic{font-size:1.8rem}.m .tx{flex:1}.m small{color:var(--mut)}
+.m.done{background:var(--okbg);border-color:var(--ok)}.m.lock{opacity:.5}
+.timer{display:flex;align-items:center;gap:12px;margin:12px 0}
+.bar{flex:1;height:16px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:var(--ok);transition:width .1s linear,background .3s}
+.bar i.low{background:var(--bad)}
+#tl{font:600 1.5rem Fredoka,sans-serif;min-width:3.5ch;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:14px 0}
+.food{background:var(--bg);border:2px solid var(--line);border-radius:16px;padding:12px 6px;cursor:pointer;color:var(--ink);font:700 .95rem/1.2 "Atkinson Hyperlegible",sans-serif;display:grid;gap:4px;justify-items:center}
+.food span{font-size:2.3rem;line-height:1}
+.food:hover:not(:disabled){border-color:var(--teal)}
+.food.good{background:var(--okbg);border-color:var(--ok)}
+.food.bad{background:var(--badbg);border-color:var(--bad)}
+.food.gone{opacity:.45;border-style:dashed}
+.food:disabled{cursor:default}
+.shake{animation:sh .35s}
+@keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@media(prefers-reduced-motion:reduce){.shake{animation:none}.bar i{transition:none}}
+.tip{min-height:3em;padding:10px 12px;border-radius:12px;background:var(--bg);color:var(--mut)}
+.pw{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.pw button{font:700 .95rem "Atkinson Hyperlegible",sans-serif;background:var(--card);color:var(--ink);border:2px solid var(--sun);border-radius:12px;padding:8px 12px;cursor:pointer}
+.pw button:disabled{opacity:.4;border-color:var(--line);cursor:not-allowed}
+.big{font-size:4rem;line-height:1;text-align:center;margin:8px 0}
+.center{text-align:center}
+.goal{margin-bottom:12px}.goal .r{display:flex;justify-content:space-between;gap:8px;font-size:.92rem}
+.goal .bar{height:8px;margin-top:4px}.goal .bar i{background:var(--teal)}.goal.ok .bar i{background:var(--ok)}
+ol.lb{margin:0;padding:0;list-style:none}
+ol.lb li{display:flex;justify-content:space-between;padding:6px 10px;border-radius:10px}
+ol.lb li.me{background:var(--okbg);font-weight:700}
+.note{font-size:.82rem;color:var(--mut);margin:8px 0 0}
+.bd{display:flex;gap:8px;justify-content:center;font-size:2rem;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Misión Glucosa</h1>
+  <div class="hud" aria-live="polite"><span class="chip" id="hearts" aria-label="Vidas">❤️❤️❤️</span><span class="chip">⭐ <span id="pts">0</span> puntos</span></div>
+</header>
+<div class="layout">
+  <main class="panel" id="stage"></main>
+  <aside>
+    <section class="panel"><h2>Retos y metas</h2><div id="goals"></div></section>
+    <section class="panel"><h2>Tabla de líderes</h2><ol class="lb" id="lb"></ol><p class="note">Los primeros puestos son personajes de ejemplo. Tus partidas se guardan en este navegador.</p></section>
+  </aside>
+</div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const POW={s:["🛡️","Escudo","bloquea el próximo alimento dañino"],t:["⏱️","+8 segundos","suma tiempo al cronómetro"],r:["🔍","Radar","descarta un alimento dañino"]};
+const M=[
+{t:"Desayuno",e:"🌅",time:30,bd:["🌞","Desayuno campeón"],st:"Don Luis vive con diabetes tipo 2 y tiene hambre. Elige los 4 alimentos adecuados para su desayuno.",f:[
+["🥣","Avena integral",1,"s","La fibra frena la entrada del azúcar a la sangre."],["🥚","Huevo cocido",1,"t","Aporta proteína y casi no tiene carbohidratos."],["🥑","Aguacate",1,"r","Grasa buena que da saciedad."],["🥛","Yogur natural sin azúcar",1,"s","Proteína sin azúcar añadida."],
+["🥐","Pan dulce",0,0,"Harina refinada y azúcar: la glucosa sube muy rápido."],["🧃","Jugo de fruta",0,0,"Sin la fibra de la fruta, el azúcar se absorbe de golpe."],["🥣","Cereal azucarado",0,0,"Carbohidrato refinado con mucha azúcar añadida."],["☕","Café con 4 azúcares",0,0,"Azúcar añadida que dispara la glucosa."]]},
+{t:"Comida",e:"🍽️",time:28,bd:["🍽️","Plato inteligente"],st:"Doña Rosa sirve la comida. Elige los 4 alimentos que sí la ayudan a mantener su glucosa estable.",f:[
+["🍗","Pollo a la plancha",1,"t","Proteína magra, sin azúcares."],["🌵","Nopales asados",1,"r","Muy ricos en fibra y con pocas calorías."],["🫘","Frijoles de la olla",1,"s","Fibra y proteína vegetal: liberan energía lento."],["🥗","Ensalada verde",1,"t","Verduras sin almidón: llenan sin subir la glucosa."],
+["🍟","Papas fritas",0,0,"Almidón y grasa frita: mala combinación."],["🍕","Pizza con extra queso",0,0,"Masa refinada y exceso de grasa saturada."],["🍚","Arroz con leche",0,0,"Arroz, leche y azúcar: un postre muy dulce."],["🍝","Pasta con crema",0,0,"Harina refinada y mucha grasa."]]},
+{t:"Colación",e:"🥜",time:26,bd:["🥜","Colación experta"],st:"Es media tarde y llega el antojo. Elige las 4 colaciones que no disparan la glucosa.",f:[
+["🥜","Almendras (un puñado)",1,"s","Grasa buena, proteína y fibra."],["🥕","Zanahoria con limón",1,"r","Verdura crujiente con pocos carbohidratos."],["🍿","Palomitas naturales",1,"t","Grano entero y fibra, sin azúcar ni mantequilla."],["🧀","Queso panela",1,"s","Proteína que sacia sin azúcar."],
+["🍪","Galletas rellenas",0,0,"Azúcar y harina refinada en cada bocado."],["🍬","Gomitas",0,0,"Azúcar casi pura."],["🍫","Chocolate con leche",0,0,"Alto en azúcar añadida."],["🥨","Botana frita",0,0,"Harina refinada, grasa y sal en exceso."]]},
+{t:"Bebidas",e:"💧",time:24,bd:["💧","Hidratación pro"],st:"Tienes sed. Elige las 4 bebidas sin azúcar para acompañar el día.",f:[
+["💧","Agua natural",1,"t","La mejor bebida: hidrata sin calorías."],["🍵","Té sin azúcar",1,"s","Hidrata y no suma carbohidratos."],["🌺","Agua de jamaica sin azúcar",1,"r","Sabor intenso sin azúcar añadida."],["☕","Café negro",1,"t","Sin azúcar, es una opción válida con moderación."],
+["🥤","Refresco regular",0,0,"Una lata tiene muchas cucharaditas de azúcar."],["🧃","Jugo embotellado",0,0,"Azúcar líquida de absorción inmediata."],["🧋","Té helado azucarado",0,0,"El té era bueno; el azúcar lo arruinó."],["⚡","Bebida energética",0,0,"Mucha azúcar y cafeína."]]},
+{t:"Cena",e:"🌙",time:22,bd:["🌙","Cena tranquila"],st:"Última misión del día. Elige las 4 opciones para una cena ligera y segura.",f:[
+["🍲","Sopa de verduras",1,"s","Fibra, líquido y pocas calorías."],["🐟","Pescado al vapor",1,"t","Proteína y grasas saludables para el corazón."],["🥗","Ensalada con atún",1,"r","Proteína y verduras en un solo plato."],["🥒","Calabacitas guisadas",1,"s","Verdura baja en carbohidratos."],
+["🥞","Hot cakes con miel",0,0,"Harina refinada más miel: doble golpe de azúcar."],["🍞","Pan blanco con mermelada",0,0,"Carbohidrato refinado y azúcar."],["🍨","Helado",0,0,"Azúcar y grasa concentradas."],["🍰","Pastel",0,0,"Harina, azúcar y grasa en una sola porción."]]}
+];
+const KEY="mg_lb_v1",SEED=[{n:"Dra. Glucosa",p:820},{n:"Chef Nopal",p:640},{n:"Capitán Fibra",p:480},{n:"Lupita",p:310},{n:"Beto",p:150}];
+let S=null,G=null,T=null;
+function loadLB(){try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r)}catch(e){}return[]}
+function saveLB(e){try{const l=loadLB();l.push(e);l.sort((a,b)=>b.p-a.p);localStorage.setItem(KEY,JSON.stringify(l.slice(0,20)))}catch(e){}}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function hud(){
+  const l=S?S.lives:3;$("#hearts").textContent="❤️".repeat(l)+"🖤".repeat(3-l);$("#pts").textContent=S?S.pts:0;
+  const b=S?S.badges.length:0,u=S?S.used:0,p=S?S.pts:0,pf=S?S.perfect:0;
+  $("#goals").innerHTML=[["Gana 3 insignias",b,3],["Completa las 5 misiones",b,5],["Misión perfecta, sin perder vidas",pf,1],["Usa 3 poderes",u,3],["Llega a 600 puntos",p,600]].map(([t,v,m])=>{const x=Math.min(v,m);return `<div class="goal ${x>=m?"ok":""}"><div class="r"><span>${x>=m?"✅ ":""}${t}</span><b>${x}/${m}</b></div><div class="bar"><i style="width:${x/m*100}%"></i></div></div>`}).join("");
+  const list=SEED.concat(loadLB());if(S)list.push({n:S.name,p:S.pts,me:1});
+  list.sort((a,b)=>b.p-a.p);
+  $("#lb").innerHTML=list.slice(0,7).map((x,i)=>`<li class="${x.me?"me":""}"><span>${i+1}. ${esc(x.n)}${x.me?" (tú)":""}</span><b>${x.p}</b></li>`).join("");
+}
+function start(){
+  const n=($("#nm").value||"").trim().slice(0,16)||"Jugador";
+  S={name:n,lives:3,pts:0,badges:[],pw:{s:0,t:0,r:0},used:0,perfect:0,saved:0};hud();map();
+}
+function intro(){
+  S=null;hud();
+  $("#stage").innerHTML=`<h2>Ayuda a controlar la glucosa</h2>
+  <p>Cada misión es una comida del día para una persona con diabetes tipo 2. Elige solo los alimentos adecuados antes de que acabe el tiempo.</p>
+  <ul class="rules"><li>Cada misión tiene un cronómetro. Si se acaba, pierdes una vida.</li><li>Si eliges un alimento dañino, pierdes una vida.</li><li>Cada alimento saludable te da un poder: escudo, tiempo extra o radar.</li><li>Cada misión superada te da una insignia. Tienes 3 vidas.</li></ul>
+  <p><label for="nm"><b>Tu nombre</b></label><br><input id="nm" maxlength="16" placeholder="Escribe tu nombre" autocomplete="off"></p>
+  <button class="btn" id="go">Empezar el juego</button>
+  <p class="note">Material educativo. No sustituye la indicación de tu médico o nutriólogo.</p>`;
+  $("#go").onclick=start;$("#nm").onkeydown=e=>{if(e.key==="Enter")start()};
+}
+function map(){
+  const nx=S.badges.length;if(nx>=M.length)return end(true);
+  $("#stage").innerHTML=`<h2>Hola, ${esc(S.name)}. Elige tu misión</h2><div class="center bd" aria-label="Insignias">${S.badges.map(i=>`<span title="${M[i].bd[1]}">${M[i].bd[0]}</span>`).join("")}</div>
+  <div class="missions">${M.map((m,i)=>`<div class="m ${i<nx?"done":i>nx?"lock":""}"><span class="ic">${i<nx?m.bd[0]:m.e}</span><div class="tx"><b>Misión ${i+1}: ${m.t}</b><br><small>${m.time} segundos · Insignia: ${m.bd[1]}</small></div>${i===nx?`<button class="btn" id="pl">Jugar</button>`:i<nx?"✅":"🔒"}</div>`).join("")}</div>`;
+  $("#pl").onclick=()=>play(nx);
+}
+function play(i){
+  const m=M[i];G={i,got:0,need:4,lost:0,sh:false,over:0,end:Date.now()+m.time*1000,items:shuffle(m.f.map(f=>({e:f[0],n:f[1],g:f[2],p:f[3],tip:f[4],done:0})))};
+  $("#stage").innerHTML=`<h2>${m.e} Misión ${i+1}: ${m.t}</h2><p>${m.st}</p>
+  <div class="timer"><div class="bar" role="progressbar" aria-label="Tiempo"><i id="bf"></i></div><span id="tl">${m.time}</span></div>
+  <div><b id="pg">Alimentos correctos: 0/4</b></div>
+  <div class="grid">${G.items.map((f,k)=>`<button class="food" data-k="${k}"><span>${f.e}</span>${f.n}</button>`).join("")}</div>
+  <div class="tip" id="tip" aria-live="polite">Toca un alimento para elegirlo.</div><div class="pw" id="pw"></div>`;
+  document.querySelectorAll(".food").forEach(b=>b.onclick=()=>eat(+b.dataset.k));
+  pws();clearInterval(T);T=setInterval(tick,100);tick();
+}
+function pws(){
+  $("#pw").innerHTML="<b>Poderes:</b>"+Object.keys(POW).map(k=>`<button data-p="${k}" ${S.pw[k]&&!G.over?"":"disabled"} title="${POW[k][2]}">${POW[k][0]} ${POW[k][1]} ×${S.pw[k]}</button>`).join("")+(G.sh?`<span class="chip">🛡️ Escudo activo</span>`:"");
+  document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>usep(b.dataset.p));
+}
+function tick(){
+  if(!G||G.over)return;
+  const left=(G.end-Date.now())/1000,tot=M[G.i].time;
+  $("#bf").style.width=Math.max(0,Math.min(100,left/tot*100))+"%";$("#bf").classList.toggle("low",left<8);
+  $("#tl").textContent=Math.max(0,Math.ceil(left))+" s";
+  if(left<=0)timeout();
+}
+function eat(k){
+  const f=G.items[k];if(f.done||G.over)return;f.done=1;
+  const b=document.querySelector(`[data-k="${k}"]`),tip=$("#tip");b.disabled=true;
+  if(f.g){
+    G.got++;S.pts+=20;S.pw[f.p]++;b.classList.add("good");
+    tip.innerHTML=`✅ <b>${f.n}</b>: ${f.tip} Ganas el poder ${POW[f.p][0]} ${POW[f.p][1]}.`;
+    $("#pg").textContent=`Alimentos correctos: ${G.got}/4`;hud();pws();
+    if(G.got>=G.need)win();
+  }else if(G.sh){
+    G.sh=false;b.classList.add("gone");tip.innerHTML=`🛡️ El escudo bloqueó <b>${f.n}</b>. ${f.tip}`;pws();
+  }else{
+    S.lives--;G.lost=1;b.classList.add("bad","shake");tip.innerHTML=`❌ <b>${f.n}</b>: ${f.tip} Pierdes una vida.`;hud();
+    if(S.lives<=0)end(false);
+  }
+}
+function usep(p){
+  if(!S.pw[p]||G.over)return;S.pw[p]--;S.used++;const tip=$("#tip");
+  if(p==="s"){G.sh=true;tip.textContent="🛡️ Escudo activo: bloqueará el próximo alimento dañino."}
+  if(p==="t"){G.end+=8000;tip.textContent="⏱️ Ganaste 8 segundos."}
+  if(p==="r"){const c=G.items.map((f,k)=>[f,k]).filter(([f])=>!f.g&&!f.done)[0];
+    if(c){c[0].done=1;const b=document.querySelector(`[data-k="${c[1]}"]`);b.disabled=true;b.classList.add("gone");tip.innerHTML=`🔍 Radar: <b>${c[0].n}</b> era dañino. ${c[0].tip}`}}
+  hud();pws();
+}
+function win(){
+  G.over=1;clearInterval(T);const m=M[G.i],left=Math.max(0,(G.end-Date.now())/1000),bonus=Math.round(left*5);
+  S.pts+=100+bonus;S.badges.push(G.i);if(!G.lost)S.perfect++;hud();
+  const last=S.badges.length>=M.length;
+  $("#stage").innerHTML=`<div class="center"><h2>¡Misión cumplida!</h2><div class="big">${m.bd[0]}</div><p><b>Insignia: ${m.bd[1]}</b></p>
+  <p>+100 por la misión · +${bonus} por tiempo restante${G.lost?"":" · Misión perfecta"}</p>
+  <button class="btn" id="nx">${last?"Ver resultado final":"Siguiente misión"}</button></div>`;
+  $("#nx").onclick=map;
+}
+function timeout(){
+  G.over=1;clearInterval(T);S.lives--;hud();
+  if(S.lives<=0)return end(false,true);
+  $("#stage").innerHTML=`<div class="center"><h2>Se acabó el tiempo</h2><div class="big">⏰</div><p>Pierdes una vida. Te quedan ${S.lives}. Puedes reintentar la misión.</p><button class="btn" id="rt">Reintentar misión</button></div>`;
+  $("#rt").onclick=()=>play(G.i);
+}
+function end(won,time){
+  clearInterval(T);if(G)G.over=1;
+  if(!S.saved){S.saved=1;saveLB({n:S.name,p:S.pts})}hud();
+  $("#stage").innerHTML=`<div class="center"><h2>${won?"¡Completaste todas las misiones!":"Fin del juego"}</h2><div class="big">${won?"🏆":"💔"}</div>
+  <p>${won?"Aprendiste a elegir alimentos que ayudan a mantener la glucosa estable.":(time?"Se acabó el tiempo y no te quedan vidas.":"Elegiste un alimento dañino y no te quedan vidas.")}</p>
+  <p><b>${S.pts} puntos</b> · ${S.badges.length} de ${M.length} insignias</p><div class="bd">${S.badges.map(i=>`<span title="${M[i].bd[1]}">${M[i].bd[0]}</span>`).join("")}</div>
+  <button class="btn" id="ag">Jugar de nuevo</button></div>`;
+  $("#ag").onclick=intro;
+}
+intro();
+</script>
+</body>
+</html>

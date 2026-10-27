@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Motor Control Simulator | Power Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/jetbrains-mono@latest/latin-700-normal.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --bg: #0f1419;
+    --bg-2: #161c24;
+    --bg-3: #1d2530;
+    --panel: #1a222d;
+    --panel-hover: #222c3a;
+    --border: #2a3544;
+    --text: #e8edf3;
+    --text-dim: #8a97a8;
+    --text-muted: #5a6778;
+    --green: #22c55e;
+    --green-soft: rgba(34, 197, 94, 0.15);
+    --yellow: #eab308;
+    --yellow-soft: rgba(234, 179, 8, 0.15);
+    --orange: #f97316;
+    --orange-soft: rgba(249, 115, 22, 0.15);
+    --red: #ef4444;
+    --red-soft: rgba(239, 68, 68, 0.15);
+    --accent: #f59e0b;
+    --sidebar-w: 260px;
+  }
+  
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  .app {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    min-height: 100vh;
+  }
+  
+  /* ===== SIDEBAR POWERBI STYLE ===== */
+  .sidebar {
+    background: var(--bg-2);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  
+  .logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--orange), var(--red));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  }
+  
+  .logo-text {
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+  }
+  
+  .logo-sub {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+  
+  .nav-section {
+    padding: 16px 12px 8px;
+  }
+  
+  .nav-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    padding: 0 8px 8px;
+    font-weight: 600;
+  }
+  
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    transition: all 0.15s ease;
+    margin-bottom: 2px;
+    border-left: 3px solid transparent;
+  }
+  
+  .nav-item:hover {
+    background: var(--panel-hover);
+    color: var(--text);
+  }
+  
+  .nav-item.active {
+    background: linear-gradient(90deg, rgba(249, 115, 22, 0.15), transparent);
+    color: var(--accent);
+    border-left-color: var(--accent);
+    font-weight: 600;
+  }
+  
+  .nav-item .ico {
+    width: 18px;
+    text-align: center;
+    font-size: 0.95rem;
+  }
+  
+  .filter-panel {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+  
+  .filter-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--panel);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 0.78rem;
+  }
+  
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px currentColor;
+    animation: pulse 2s infinite;
+  }
+  
+  .status-dot.warn { background: var(--yellow); }
+  .status-dot.danger { background: var(--red); }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  
+  /* ===== MAIN CONTENT ===== */
+  .main {
+    padding: 20px 24px;
+    overflow-x: hidden;
+  }
+  
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  
+  .page-sub {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  
+  .topbar-actions {
+    display: flex;
+    gap: 8px;
+  }
+  
+  .btn {
+    padding: 8px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .btn:hover {
+    background: var(--panel-hover);
+    border-color: var(--accent);
+  }
+  
+  .btn.primary {
+    background: linear-gradient(135deg, var(--orange), var(--red));
+    border-color: transparent;
+    color: white;
+  }
+  
+  .btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.3);
+  }
+  
+  .btn.danger {
+    background: var(--red-soft);
+    border-color: var(--red);
+    color: var(--red);
+  }
+  
+  /* ===== KPI CARDS ===== */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  
+  .kpi-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+  
+  .kpi-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  
+  .kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  
+  .kpi-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  
+  .kpi-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+  }
+  
+  .kpi-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  
+  .kpi-unit {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-weight: 400;
+    margin-left: 3px;
+  }
+  
+  .kpi-trend {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .kpi-bar {
+    height: 4px;
+    background: var(--bg-3);
+    border-radius: 2px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  
+  .kpi-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease, background 0.3s ease;
+  }
+  
+  /* ===== GAUGES ===== */
+  .gauges-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  
+  .gauge-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+  }
+  
+  .gauge-title {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  
+  .gauge-svg {
+    width: 100%;
+    max-width: 220px;
+    margin: 0 auto;
+    display: block;
+  }
+  
+  .gauge-value-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  
+  .gauge-range {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  
+  /* ===== CONTROLS ===== */
+  .controls-chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  
+  @media (max-width: 1100px) {
+    .controls-chart-grid { grid-template-columns: 1fr; }
+  }
+  
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  
+  .card-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .control-group {
+    margin-bottom: 16px;
+  }
+  
+  .control-group:last-child { margin-bottom: 0; }
+  
+  .control-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+  }
+  
+  .control-name {
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  
+  .control-val {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+  
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--bg-3);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(135deg, var(--orange), var(--red));
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.4);
+    transition: transform 0.15s ease;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+  
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(135deg, var(--orange), var(--red));
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.4);
+  }
+  
+  .chart-container {
+    position: relative;
+    width: 100%;
+    height: 280px;
+  }
+  
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  
+  /* ===== SCENARIO INFO ===== */
+  .scenario-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .info-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .info-label {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .info-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--accent);
+  }
+  
+  /* ===== ALERTS ===== */
+  .alerts {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+  }
+  
+  .alerts.ok { border-color: var(--green); background: var(--green-soft); }
+  .alerts.warn { border-color: var(--yellow); background: var(--yellow-soft); }
+  .alerts.danger { border-color: var(--red); background: var(--red-soft); animation: alertPulse 1.5s infinite; }
+  
+  @keyframes alertPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  }
+  
+  .alert-icon {
+    font-size: 1.3rem;
+  }
+  
+  .alert-text {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  
+  .alert-sub {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+  
+  /* ===== MOBILE ===== */
+  .menu-toggle {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 100;
+    width: 40px;
+    height: 40px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 1.2rem;
+  }
+  
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed;
+      left: -280px;
+      top: 0;
+      width: 260px;
+      z-index: 99;
+      transition: left 0.3s ease;
+    }
+    .sidebar.open { left: 0; }
+    .menu-toggle { display: flex; align-items: center; justify-content: center; }
+    .main { padding: 70px 16px 20px; }
+    .kpi-value { font-size: 1.4rem; }
+  }
+  
+  /* ===== MOTOR VISUAL ===== */
+  .motor-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+  }
+  
+  .motor-svg {
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .rotor {
+    transform-origin: 100px 100px;
+    animation: spin linear infinite;
+    animation-play-state: paused;
+  }
+  
+  .rotor.running {
+    animation-play-state: running;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+
+<button class="menu-toggle" id="menuToggle">☰</button>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo-text">MotorSim Pro</div>
+        <div class="logo-sub">Control Dashboard v2.4</div>
+      </div>
+    </div>
+    
+    <div class="nav-section">
+      <div class="nav-title">Escenarios</div>
+      <div class="nav-item active" data-scenario="industrial">
+        <span class="ico">🏭</span><span>Motor Industrial</span>
+      </div>
+      <div class="nav-item" data-scenario="ev">
+        <span class="ico">🚗</span><span>Vehículo Eléctrico</span>
+      </div>
+      <div class="nav-item" data-scenario="domestic">
+        <span class="ico">🏠</span><span>Motor Doméstico</span>
+      </div>
+    </div>
+    
+    <div class="nav-section">
+      <div class="nav-title">Vistas</div>
+      <div class="nav-item active" data-view="dashboard">
+        <span class="ico">📊</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" data-view="analytics">
+        <span class="ico">📈</span><span>Analítica</span>
+      </div>
+      <div class="nav-item" data-view="diagnostics">
+        <span class="ico">🔧</span><span>Diagnóstico</span>
+      </div>
+    </div>
+    
+    <div class="nav-section">
+      <div class="nav-title">Sistema</div>
+      <div class="nav-item" id="navPower">
+        <span class="ico">🔌</span><span id="powerStateText">Encendido</span>
+      </div>
+      <div class="nav-item" id="navEmergency">
+        <span class="ico">🚨</span><span>Paro de Emergencia</span>
+      </div>
+    </div>
+    
+    <div class="filter-panel">
+      <div class="filter-title">Estado del Sistema</div>
+      <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Operación Normal</span>
+      </div>
+      <div class="status-indicator">
+        <span style="color:var(--text-muted);font-size:0.72rem;">🕐</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;" id="clock">00:00:00</span>
+      </div>
+      <div class="status-indicator">
+        <span style="color:var(--text-muted);font-size:0.72rem;">⏱️</span>
+        <span style="font-size:0.78rem;">Uptime: <span id="uptime">0s</span></span>
+      </div>
+    </div>
+  </aside>
+  
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="pageTitle">Motor Industrial</div>
+        <div class="page-sub" id="pageSub">Simulación de motor trifásico de alta potencia · 480V / 50HP</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn" id="resetBtn">↺ Reset</button>
+        <button class="btn primary" id="powerBtn">⏻ Encender</button>
+      </div>
+    </div>
+    
+    <!-- ALERTS -->
+    <div class="alerts ok" id="alertBox">
+      <div class="alert-icon">✅</div>
+      <div style="flex:1">
+        <div class="alert-text" id="alertText">Sistema operativo</div>
+        <div class="alert-sub" id="alertSub">Todos los parámetros dentro de rango nominal</div>
+      </div>
+    </div>
+    
+    <!-- SCENARIO INFO -->
+    <div class="scenario-info">
+      <div class="info-item">
+        <div class="info-label">Modelo</div>
+        <div class="info-value" id="infoModel">IND-50HP</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Voltaje Nominal</div>
+        <div class="info-value" id="infoVoltage">480V</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Potencia Máx</div>
+        <div class="info-value" id="infoPower">37.3 kW</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">RPM Nominales</div>
+        <div class="info-value" id="infoRPM">1750</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Eficiencia</div>
+        <div class="info-value" id="infoEff">94%</div>
+      </div>
+    </div>
+    
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-label">Voltaje</div>
+          <div class="kpi-icon" style="background:var(--green-soft);color:var(--green);">⚡</div>
+        </div>
+        <div class="kpi-value" id="kpiVoltage">0<span class="kpi-unit">V</span></div>
+        <div class="kpi-trend">📊 <span id="kpiVoltageTrend">0% carga</span></div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" id="barVoltage" style="width:0%;background:var(--green);"></div></div>
+      </div>
+      
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-label">Amperaje</div>
+          <div class="kpi-icon" style="background:var(--yellow-soft);color:var(--yellow);">🔋</div>
+        </div>
+        <div class="kpi-value" id="kpiAmp">0<span class="kpi-unit">A</span></div>
+        <div class="kpi-trend">📊 <span id="kpiAmpTrend">0% capacidad</span></div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" id="barAmp" style="width:0%;background:var(--yellow);"></div></div>
+      </div>
+      
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-label">Velocidad</div>
+          <div class="kpi-icon" style="background:var(--orange-soft);color:var(--orange);">⚙️</div>
+        </div>
+        <div class="kpi-value" id="kpiRPM">0<span class="kpi-unit">RPM</span></div>
+        <div class="kpi-trend">📊 <span id="kpiRPMTrend">0% nominal</span></div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" id="barRPM" style="width:0%;background:var(--orange);"></div></div>
+      </div>
+      
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-label">Potencia Salida</div>
+          <div class="kpi-icon" style="background:var(--red-soft);color:var(--red);">🔥</div>
+        </div>
+        <div class="kpi-value" id="kpiPower">0<span class="kpi-unit">kW</span></div>
+        <div class="kpi-trend">📊 <span id="kpiPowerTrend">0% máx</span></div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" id="barPower" style="width:0%;background:var(--red);"></div></div>
+      </div>
+    </div>
+    
+    <!-- GAUGES -->
+    <div class="gauges-grid">
+      <div class="gauge-card">
+        <div class="gauge-title">🌡️ Temperatura</div>
+        <svg class="gauge-svg" viewBox="0 0 200 130" id="gaugeTemp"></svg>
+        <div class="gauge-value-text" id="gaugeTempVal">25°C</div>
+        <div class="gauge-range">Ambiente: 25°C · Máx: 120°C</div>
+      </div>
+      
+      <div class="gauge-card">
+        <div class="gauge-title">⚡ Eficiencia</div>
+        <svg class="gauge-svg" viewBox="0 0 200 130" id="gaugeEff"></svg>
+        <div class="gauge-value-text" id="gaugeEffVal">0%</div>
+        <div class="gauge-range">Rango óptimo: 85-95%</div>
+      </div>
+      
+      <div class="gauge-card">
+        <div class="gauge-title">🔄 Torque</div>
+        <svg class="gauge-svg" viewBox="0 0 200 130" id="gaugeTorque"></svg>
+        <div class="gauge-value-text" id="gaugeTorqueVal">0 N·m</div>
+        <div class="gauge-range">Escala: 0 - <span id="torqueMax">200</span> N·m</div>
+      </div>
+      
+      <div class="gauge-card motor-visual">
+        <div class="gauge-title">🎛️ Motor Visual</div>
+        <svg class="motor-svg" viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="90" fill="#1d2530" stroke="#2a3544" stroke-width="2"/>
+          <circle cx="100" cy="100" r="75" fill="#0f1419" stroke="#f97316" stroke-width="1" opacity="0.3"/>
+          <g class="rotor" id="rotor">
+            <line x1="100" y1="30" x2="100" y2="170" stroke="#f97316" stroke-width="3" opacity="0.6"/>
+            <line x1="30" y1="100" x2="170" y2="100" stroke="#f97316" stroke-width="3" opacity="0.6"/>
+            <line x1="50" y1="50" x2="150" y2="150" stroke="#eab308" stroke-width="2" opacity="0.4"/>
+            <line x1="150" y1="50" x2="50" y2="150" stroke="#eab308" stroke-width="2" opacity="0.4"/>
+            <circle cx="100" cy="100" r="15" fill="#f97316"/>
+            <circle cx="100" cy="100" r="8" fill="#0f1419"/>
+          </g>
+        </svg>
+        <div class="gauge-value-text" id="motorStatusText">APAGADO</div>
+      </div>
+    </div>
+    
+    <!-- CONTROLS + CHART -->
+    <div class="controls-chart-grid">
+      <div class="card">
+        <div class="card-title">🎛️ Controles de Operación</div>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span class="control-name">Voltaje de Entrada</span>
+            <span class="control-val"><span id="valVoltage">0</span> V</span>
+          </div>
+          <input type="range" id="ctrlVoltage" min="0" max="100" value="0">
+        </div>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span class="control-name">Carga Mecánica</span>
+            <span class="control-val"><span id="valLoad">0</span> %</span>
+          </div>
+          <input type="range" id="ctrlLoad" min="0" max="100" value="0">
+        </div>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span class="control-name">Frecuencia (Hz)</span>
+            <span class="control-val"><span id="valFreq">0</span> Hz</span>
+          </div>
+          <input type="range" id="ctrlFreq" min="0" max="100" value="0">
+        </div>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span class="control-name">Factor de Potencia</span>
+            <span class="control-val"><span id="valPF">0.85</span></span>
+          </div>
+          <input type="range" id="ctrlPF" min="50" max="100" value="85">
+        </div>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span class="control-name">Refrigeración</span>
+            <span class="control-val"><span id="valCool">50</span> %</span>
+          </div>
+          <input type="range" id="ctrlCool" min="0" max="100" value="50">
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">📈 Histórico en Tiempo Real</div>
+        <div class="chart-container">
+          <canvas id="chart"></canvas>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:0.75rem;">
+          <div style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--green);border-radius:2px;"></span>Voltaje</div>
+          <div style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--yellow);border-radius:2px;"></span>Amperaje</div>
+          <div style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--orange);border-radius:2px;"></span>RPM</div>
+          <div style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--red);border-radius:2px;"></span>Potencia</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============ SCENARIOS ============
+const SCENARIOS = {
+  industrial: {
+    name: 'Motor Industrial',
+    sub: 'Simulación de motor trifásico de alta potencia · 480V / 50HP',
+    model: 'IND-50HP',
+    voltageNom: 480,
+    powerMax: 37.3,
+    rpmNom: 1750,
+    effNom: 94,
+    currentMax: 65,
+    torqueMax: 200,
+    tempAmbient: 25,
+    tempMax: 120,
+    inertia: 0.85,
+    vRange: [0, 600],
+    fRange: [0, 80],
+    icon: '🏭'
+  },
+  ev: {
+    name: 'Vehículo Eléctrico',
+    sub: 'Motor de tracción AC · Batería 400V / 200kW',
+    model: 'EV-200',
+    voltageNom: 400,
+    powerMax: 200,
+    rpmNom: 8000,
+    effNom: 96,
+    currentMax: 500,
+    torqueMax: 400,
+    tempAmbient: 22,
+    tempMax: 100,
+    inertia: 0.3,
+    vRange: [300, 450],
+    fRange: [0, 400],
+    icon: '🚗'
+  },
+  domestic: {
+    name: 'Motor Doméstico',
+    sub: 'Motor monofásico de uso residencial · 120V / 2HP',
+    model: 'DOM-2HP',
+    voltageNom: 120,
+    powerMax: 1.5,
+    rpmNom: 3450,
+    effNom: 78,
+    currentMax: 15,
+    torqueMax: 8,
+    tempAmbient: 25,
+    tempMax: 90,
+    inertia: 0.5,
+    vRange: [0, 140],
+    fRange: [0, 70],
+    icon: '🏠'
+  }
+};
+
+// ============ STATE ============
+let currentScenario = 'industrial';
+let powered = false;
+let startTime = Date.now();
+
+let inputs = {
+  voltage: 0,
+  load: 0,
+  freq: 0,
+  pf: 0.85,
+  cool: 50
+};
+
+let state = {
+  voltage: 0,
+  current: 0,
+  rpm: 0,
+  power: 0,
+  temp: 25,
+  eff: 0,
+  torque: 0
+};
+
+let history = {
+  voltage: [],
+  current: [],
+  rpm: [],
+  power: []
+};
+const HIST_LEN = 60;
+
+// ============ DOM ============
+const $ = id => document.getElementById(id);
+
+// ============ INIT ============
+function init() {
+  setupScenario();
+  setupEvents();
+  setupGauges();
+  initHistory();
+  updateClock();
+  setInterval(updateClock, 1000);
+  setInterval(updateUptime, 1000);
+  requestAnimationFrame(loop);
+}
+
+function setupScenario() {
+  const s = SCENARIOS[currentScenario];
+  $('pageTitle').textContent = s.name;
+  $('pageSub').textContent = s.sub;
+  $('infoModel').textContent = s.model;
+  $('infoVoltage').textContent = s.voltageNom + 'V';
+  $('infoPower').textContent = s.powerMax + ' kW';
+  $('infoRPM').textContent = s.rpmNom;
+  $('infoEff').textContent = s.effNom + '%';
+  $('torqueMax').textContent = s.torqueMax;
+  
+  // Ajustar sliders al escenario
+  const cv = $('ctrlVoltage');
+  cv.min = s.vRange[0];
+  cv.max = s.vRange[1];
+  cv.value = powered ? s.voltageNom : s.vRange[0];
+  
+  const cf = $('ctrlFreq');
+  cf.min = s.fRange[0];
+  cf.max = s.fRange[1];
+  cf.value = powered ? 60 : 0;
+  
+  updateControlDisplays();
+}
+
+function setupEvents() {
+  // Scenario nav
+  document.querySelectorAll('[data-scenario]').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('[data-scenario]').forEach(n => n.classList.remove('active'));
+      el.classList.add('active');
+      currentScenario = el.dataset.scenario;
+      powered = false;
+      updatePowerUI();
+      setupScenario();
+      resetState();
+    });
+  });
+  
+  // View nav (cosmético)
+  document.querySelectorAll('[data-view]').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('[data-view]').forEach(n => n.classList.remove('active'));
+      el.classList.add('active');
+    });
+  });
+  
+  // Power button
+  $('powerBtn').addEventListener('click', () => {
+    powered = !powered;
+    updatePowerUI();
+    if (!powered) resetState();
+  });
+  
+  $('navPower').addEventListener('click', () => {
+    powered = !powered;
+    updatePowerUI();
+    if (!powered) resetState();
+  });
+  
+  $('navEmergency').addEventListener('click', () => {
+    powered = false;
+    updatePowerUI();
+    resetState();
+    showAlert('danger', '🚨 Paro de emergencia activado', 'Motor detenido inmediatamente por seguridad');
+  });
+  
+  $('resetBtn').addEventListener('click', () => {
+    const s = SCENARIOS[currentScenario];
+    $('ctrlVoltage').value = s.vRange[0];
+    $('ctrlLoad').value = 0;
+    $('ctrlFreq').value = s.fRange[0];
+    $('ctrlPF').value = 85;
+    $('ctrlCool').value = 50;
+    updateControlDisplays();
+    resetState();
+  });
+  
+  // Sliders
+  ['ctrlVoltage', 'ctrlLoad', 'ctrlFreq', 'ctrlPF', 'ctrlCool'].forEach(id => {
+    $(id).addEventListener('input', () => {
+      inputs.voltage = parseFloat($('ctrlVoltage').value);
+      inputs.load = parseFloat($('ctrlLoad').value);
+      inputs.freq = parseFloat($('ctrlFreq').value);
+      inputs.pf = parseFloat($('ctrlPF').value) / 100;
+      inputs.cool = parseFloat($('ctrlCool').value);
+      updateControlDisplays();
+    });
+  });
+  
+  // Mobile menu
+  $('menuToggle').addEventListener('click', () => {
+    $('sidebar').classList.toggle('open');
+  });
+}
+
+function updateControlDisplays() {
+  $('valVoltage').textContent = Math.round(inputs.voltage);
+  $('valLoad').textContent = Math.round(inputs.load);
+  $('valFreq').textContent = Math.round(inputs.freq);
+  $('valPF').textContent = inputs.pf.toFixed(2);
+  $('valCool').textContent = Math.round(inputs.cool);
+}
+
+function updatePowerUI() {
+  const btn = $('powerBtn');
+  const txt = $('powerStateText');
+  if (powered) {
+    btn.innerHTML = '⏻ Apagar';
+    btn.classList.remove('primary');
+    btn.classList.add('danger');
+    txt.textContent = 'Encendido';
+    $('rotor').classList.add('running');
+    $('motorStatusText').textContent = 'OPERANDO';
+    $('motorStatusText').style.color = 'var(--green)';
+  } else {
+    btn.innerHTML = '⏻ Encender';
+    btn.classList.add('primary');
+    btn.classList.remove('danger');
+    txt.textContent = 'Apagado';
+    $('rotor').classList.remove('running');
+    $('motorStatusText').textContent = 'APAGADO';
+    $('motorStatusText').style.color = 'var(--text-muted)';
+  }
+}
+
+function resetState() {
+  const s = SCENARIOS[currentScenario];
+  state.voltage = 0;
+  state.current = 0;
+  state.rpm = 0;
+  state.power = 0;
+  state.temp = s.tempAmbient;
+  state.eff = 0;
+  state.torque = 0;
+  initHistory();
+}
+
+// ============ PHYSICS SIMULATION ============
+function simulate() {
+  const s = SCENARIOS[currentScenario];
+  const dt = 1/60;
+  
+  if (!powered) {
+    // Motor apagado: decaimiento
+    state.rpm *= (1 - 0.02);
+    state.voltage *= 0.9;
+    state.current *= 0.9;
+    state.power *= 0.9;
+    state.temp += (s.tempAmbient - state.temp) * 0.01;
+    state.eff = 0;
+    state.torque *= 0.9;
+    return;
+  }
+  
+  // Voltaje: objetivo basado en slider
+  const vTarget = inputs.voltage;
+  state.voltage += (vTarget - state.voltage) * 0.1;
+  
+  // RPM: proporcional a voltaje y frecuencia, afectado por carga
+  const freqRatio = s.fRange[1] > 0 ? inputs.freq / s.fRange[1] : 0;
+  const vRatio = s.vRange[1] > 0 ? (state.voltage - s.vRange[0]) / (s.vRange[1] - s.vRange[0]) : 0;
+  const rpmTarget = s.rpmNom * Math.max(0, vRatio) * (0.5 + 0.5 * freqRatio) * (1 - inputs.load * 0.004);
+  state.rpm += (rpmTarget - state.rpm) * (0.05 * (1 - s.inertia * 0.5));
+  
+  // Corriente: depende de carga y voltaje
+  const iBase = s.currentMax * 0.1 * vRatio;
+  const iLoad = s.currentMax * 0.9 * (inputs.load / 100) * vRatio;
+  const iTarget = iBase + iLoad;
+  state.current += (iTarget - state.current) * 0.15;
+  
+  // Potencia = V * I * PF * eficiencia / 1000 (kW)
+  const effInstant = Math.max(0.3, s.effNom/100 * (1 - inputs.load * 0.001));
+  state.power = (state.voltage * state.current * inputs.pf * effInstant) / 1000;
+  
+  // Torque = Power / (RPM * 2π/60)
+  if (state.rpm > 10) {
+    state.torque = (state.power * 1000) / (state.rpm * 2 * Math.PI / 60);
+  } else {
+    state.torque = s.torqueMax * (inputs.load / 100) * vRatio;
+  }
+  
+  // Eficiencia
+  state.eff = effInstant * 100;
+  
+  // Temperatura: genera calor con potencia, disipa con refrigeración
+  const heatGen = state.power * 0.15;
+  const coolFactor = inputs.cool / 100;
+  const heatDiss = (state.temp - s.tempAmbient) * 0.02 * (0.3 + coolFactor * 0.7);
+  state.temp += (heatGen - heatDiss) * dt * 10;
+  state.temp = Math.max(s.tempAmbient, Math.min(s.tempMax + 20, state.temp));
+}
+
+// ============ UI UPDATE ============
+function updateUI() {
+  const s = SCENARIOS[currentScenario];
+  
+  // KPIs
+  $('kpiVoltage').innerHTML = Math.round(state.voltage) + '<span class="kpi-unit">V</span>';
+  $('kpiAmp').innerHTML = state.current.toFixed(1) + '<span class="kpi-unit">A</span>';
+  $('kpiRPM').innerHTML = Math.round(state.rpm) + '<span class="kpi-unit">RPM</span>';
+  $('kpiPower').innerHTML = state.power.toFixed(2) + '<span class="kpi-unit">kW</span>';
+  
+  // Trends
+  const vPct = s.vRange[1] > 0 ? (state.voltage / s.vRange[1] * 100) : 0;
+  const aPct = s.currentMax > 0 ? (state.current / s.currentMax * 100) : 0;
+  const rPct = s.rpmNom > 0 ? (state.rpm / s.rpmNom * 100) : 0;
+  const pPct = s.powerMax > 0 ? (state.power / s.powerMax * 100) : 0;
+  
+  $('kpiVoltageTrend').textContent = vPct.toFixed(0) + '% nominal';
+  $('kpiAmpTrend').textContent = aPct.toFixed(0) + '% capacidad';
+  $('kpiRPMTrend').textContent = rPct.toFixed(0) + '% nominal';
+  $('kpiPowerTrend').textContent = pPct.toFixed(0) + '% máx';
+  
+  // Bars con colores dinámicos
+  setBar('barVoltage', vPct, getTempColor(vPct, 90));
+  setBar('barAmp', aPct, getTempColor(aPct, 85));
+  setBar('barRPM', rPct, getTempColor(rPct, 95));
+  setBar('barPower', pPct, getTempColor(pPct, 80));
+  
+  // Gauges
+  const tempPct = (state.temp - s.tempAmbient) / (s.tempMax - s.tempAmbient) * 100;
+  updateGauge('gaugeTemp', Math.max(0, Math.min(100, tempPct)), getTempColor(tempPct, 75));
+  $('gaugeTempVal').textContent = state.temp.toFixed(0) + '°C';
+  $('gaugeTempVal').style.color = getTempColor(tempPct, 75);
+  
+  updateGauge('gaugeEff', state.eff, state.eff > 85 ? 'var(--green)' : state.eff > 70 ? 'var(--yellow)' : 'var(--red)');
+  $('gaugeEffVal').textContent = state.eff.toFixed(1) + '%';
+  $('gaugeEffVal').style.color = state.eff > 85 ? 'var(--green)' : state.eff > 70 ? 'var(--yellow)' : 'var(--red)';
+  
+  const tPct = s.torqueMax > 0 ? (state.torque / s.torqueMax * 100) : 0;
+  updateGauge('gaugeTorque', Math.min(100, tPct), getTempColor(tPct, 80));
+  $('gaugeTorqueVal').textContent = state.torque.toFixed(1) + ' N·m';
+  $('gaugeTorqueVal').style.color = getTempColor(tPct, 80);
+  
+  // Rotor speed
+  if (powered && state.rpm > 10) {
+    const dur = Math.max(0.05, 10 / Math.max(100, state.rpm));
+    $('rotor').style.animationDuration = dur + 's';
+  }
+  
+  // Alertas
+  updateAlerts(s);
+  
+  // Status dot
+  const dot = $('statusDot');
+  const stxt = $('statusText');
+  if (tempPct > 85 || aPct > 95) {
+    dot.className = 'status-dot danger';
+    stxt.textContent = 'Estado Crítico';
+  } else if (tempPct > 65 || aPct > 75) {
+    dot.className = 'status-dot warn';
+    stxt.textContent = 'Precaución';
+  } else {
+    dot.className = 'status-dot';
+    stxt.textContent = powered ? 'Operación Normal' : 'Sistema Inactivo';
+  }
+}
+
+function setBar(id, pct, color) {
+  const el = $(id);
+  el.style.width = Math.min(100, pct) + '%';
+  el.style.background = color;
+}
+
+function getTempColor(pct, warnThreshold) {
+  if (pct < warnThreshold * 0.6) return 'var(--green)';
+  if (pct < warnThreshold * 0.8) return 'var(--yellow)';
+  if (pct < warnThreshold) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function updateAlerts(s) {
+  const box = $('alertBox');
+  const icon = box.querySelector('.alert-icon');
+  const tempPct = (state.temp - s.tempAmbient) / (s.tempMax - s.tempAmbient) * 100;
+  const aPct = s.currentMax > 0 ? (state.current / s.currentMax * 100) : 0;
+  
+  box.classList.remove('ok', 'warn', 'danger');
+  
+  if (!powered) {
+    box.classList.add('ok');
+    icon.textContent = '⏸️';
+    $('alertText').textContent = 'Motor detenido';
+    $('alertSub').textContent = 'Presione Encender para iniciar la simulación';
+    return;
+  }
+  
+  if (tempPct > 85 || aPct > 95) {
+    box.classList.add('danger');
+    icon.textContent = '🚨';
+    $('alertText').textContent = '¡ALERTA! Condiciones críticas detectadas';
+    $('alertSub').textContent = 'Temperatura: ' + state.temp.toFixed(0) + '°C · Corriente: ' + state.current.toFixed(1) + 'A';
+  } else if (tempPct > 65 || aPct > 75) {
+    box.classList.add('warn');
+    icon.textContent = '⚠️';
+    $('alertText').textContent = 'Precaución: Parámetros elevados';
+    $('alertSub').textContent = 'Ajuste la carga o aumente la refrigeración';
+  } else {
+    box.classList.add('ok');
+    icon.textContent = '✅';
+    $('alertText').textContent = 'Sistema operativo';
+    $('alertSub').textContent = 'Todos los parámetros dentro de rango nominal';
+  }
+}
+
+function showAlert(type, text, sub) {
+  const box = $('alertBox');
+  const icon = box.querySelector('.alert-icon');
+  box.classList.remove('ok', 'warn', 'danger');
+  box.classList.add(type);
+  icon.textContent = type === 'danger' ? '🚨' : type === 'warn' ? '⚠️' : '✅';
+  $('alertText').textContent = text;
+  $('alertSub').textContent = sub;
+}
+
+// ============ GAUGES SVG ============
+function setupGauges() {
+  ['gaugeTemp', 'gaugeEff', 'gaugeTorque'].forEach(id => {
+    const svg = $(id);
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="grad_${id}" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#22c55e"/>
+          <stop offset="50%" stop-color="#eab308"/>
+          <stop offset="80%" stop-color="#f97316"/>
+          <stop offset="100%" stop-color="#ef4444"/>
+        </linearGradient>
+      </defs>
+      <path d="${describeArc(100, 100, 75, -135, 135)}" fill="none" stroke="#2a3544" stroke-width="14" stroke-linecap="round"/>
+      <path class="gauge-arc" d="${describeArc(100, 100, 75, -135, -135)}" fill="none" stroke="url(#grad_${id})" stroke-width="14" stroke-linecap="round"/>
+      <circle class="gauge-needle" cx="100" cy="100" r="4" fill="var(--accent)"/>
+      <line class="gauge-needle-line" x1="100" y1="100" x2="100" y2="40" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+    `;
+  });
+}
+
+function describeArc(cx, cy, r, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+}
+
+function polarToCartesian(cx, cy, r, angle) {
+  const rad = (angle - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function updateGauge(id, pct, color) {
+  const svg = $(id);
+  const arc = svg.querySelector('.gauge-arc');
+  const needle = svg.querySelector('.gauge-needle-line');
+  
+  const angle = -135 + (pct / 100) * 270;
+  arc.setAttribute('d', describeArc(100, 100, 75, -135, angle));
+  
+  const rad = (angle - 90) * Math.PI / 180;
+  const nx = 100 + 60 * Math.cos(rad);
+  const ny = 100 + 60 * Math.sin(rad);
+  needle.setAttribute('x2', nx);
+  needle.setAttribute('y2', ny);
+  needle.setAttribute('stroke', color);
+}
+
+// ============ HISTORY CHART ============
+function initHistory() {
+  history.voltage = Array(HIST_LEN).fill(0);
+  history.current = Array(HIST_LEN).fill(0);
+  history.rpm = Array(HIST_LEN).fill(0);
+  history.power = Array(HIST_LEN).fill(0);
+}
+
+function pushHistory() {
+  const s = SCENARIOS[currentScenario];
+  history.voltage.push(state.voltage / s.vRange[1] * 100);
+  history.current.push(state.current / s.currentMax * 100);
+  history.rpm.push(state.rpm / s.rpmNom * 100);
+  history.power.push(state.power / s.powerMax * 100);
+  
+  if (history.voltage.length > HIST_LEN) {
+    history.voltage.shift();
+    history.current.shift();
+    history.rpm.shift();
+    history.power.shift();
+  }
+}
+
+function drawChart() {
+  const canvas = $('chart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  
+  const w = rect.width;
+  const h = rect.height;
+  const pad = { l: 35, r: 10, t: 10, b: 25 };
+  const cw = w - pad.l - pad.r;
+  const ch = h - pad.t - pad.b;
+  
+  ctx.clearRect(0, 0, w, h);
+  
+  // Grid
+  ctx.strokeStyle = '#2a3544';
+  ctx.lineWidth = 1;
+  ctx.font = '10px JetBrains Mono';
+  ctx.fillStyle = '#5a6778';
+  
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (ch / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, y);
+    ctx.lineTo(w - pad.r, y);
+    ctx.stroke();
+    ctx.fillText((100 - i * 25) + '%', 5, y + 3);
+  }
+  
+  // Time labels
+  for (let i = 0; i <= 6; i++) {
+    const x = pad.l + (cw / 6) * i;
+    ctx.fillText('-' + (60 - i * 10) + 's', x - 10, h - 8);
+  }
+  
+  // Lines
+  const series = [
+    { data: history.voltage, color: '#22c55e' },
+    { data: history.current, color: '#eab308' },
+    { data: history.rpm, color: '#f97316' },
+    { data: history.power, color: '#ef4444' }
+  ];
+  
+  series.forEach(s => {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    s.data.forEach((v, i) => {
+      const x = pad.l + (cw / (HIST_LEN - 1)) * i;
+      const y = pad.t + ch - (v / 100) * ch;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    
+    // Glow
+    ctx.strokeStyle = s.color + '40';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+  });
+}
+
+// ============ CLOCK ============
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  $('clock').textContent = `${h}:${m}:${s}`;
+}
+
+function updateUptime() {
+  const sec = Math.floor((Date.now() - startTime) / 1000);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  $('uptime').textContent = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+// ============ MAIN LOOP ============
+let lastHistPush = 0;
+let lastChartDraw = 0;
+
+function loop(t) {
+  simulate();
+  updateUI();
+  
+  if (t - lastHistPush > 1000) {
+    pushHistory();
+    lastHistPush = t;
+  }
+  
+  if (t - lastChartDraw > 100) {
+    drawChart();
+    lastChartDraw = t;
+  }
+  
+  requestAnimationFrame(loop);
+}
+
+// Resize
+window.addEventListener('resize', drawChart);
+
+init();
+</script>
+</body>
+</html>

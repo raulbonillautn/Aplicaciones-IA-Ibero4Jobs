@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimuMotor Pro - Simulador de Control y Telemetría de Motores</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for Telemetry -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            heading: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              bg: '#0f172a',
+              card: '#1e293b',
+              sidebar: '#0b1329',
+              border: '#334155'
+            },
+            warm: {
+              green: '#22c55e',   // Operación Normal / Óptima
+              yellow: '#eab308',  // Precaución / Carga Media
+              orange: '#f97316',  // Sobrecarga / Alta Temperatura
+              red: '#ef4444'      // Crítico / Disparo Térmico
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Outfit', sans-serif;
+    }
+    
+    /* Custom Scrollbar PowerBI Style */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Card Glow Effects based on status */
+    .glow-green { box-shadow: 0 0 15px -3px rgba(34, 197, 94, 0.25); }
+    .glow-yellow { box-shadow: 0 0 15px -3px rgba(234, 179, 8, 0.25); }
+    .glow-orange { box-shadow: 0 0 15px -3px rgba(249, 115, 22, 0.3); }
+    .glow-red { box-shadow: 0 0 20px -2px rgba(239, 68, 68, 0.4); }
+
+    /* Custom range slider styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #334155;
+      height: 6px;
+      border-radius: 3px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      background: #f97316;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+      transition: transform 0.1s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    /* Pulse animations for status */
+    @keyframes pulse-alarm {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .animate-alarm {
+      animation: pulse-alarm 0.8s infinite ease-in-out;
+    }
+  </style>
+</head>
+
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
+
+  <!-- TOP HEADER (POWERBI STYLE TELEMETRY HEADER) -->
+  <header class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-30 flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <button id="btn-toggle-sidebar" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-bars text-lg"></i>
+      </button>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-slate-950 font-black shadow-md">
+          <i class="fa-solid fa-bolt text-sm"></i>
+        </div>
+        <div>
+          <h1 class="font-heading font-extrabold text-base text-white leading-none tracking-wide">
+            SimuMotor <span class="text-orange-500">Pro</span>
+          </h1>
+          <p class="text-[10px] text-slate-400 font-medium">PowerBI Telemetry & Industrial Motor Control</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER STATUS BADGE -->
+    <div class="hidden sm:flex items-center gap-3 bg-slate-950/80 px-4 py-1.5 rounded-full border border-slate-800">
+      <span class="text-xs text-slate-400 font-medium">Estado del Motor:</span>
+      <div id="status-badge" class="flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="status-text">OPERANDO NORMAL</span>
+      </div>
+    </div>
+
+    <!-- QUICK CONTROLS & TIMESTAMP -->
+    <div class="flex items-center gap-2">
+      <div id="live-clock" class="hidden md:block font-mono text-xs text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+        00:00:00
+      </div>
+      <button onclick="motor.startMotor()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all flex items-center gap-1.5 shadow-md shadow-emerald-900/30">
+        <i class="fa-solid fa-play"></i> <span class="hidden sm:inline">INICIAR</span>
+      </button>
+      <button onclick="motor.stopMotor()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-all flex items-center gap-1.5 shadow-md shadow-amber-900/30">
+        <i class="fa-solid fa-pause"></i> <span class="hidden sm:inline">PARAR</span>
+      </button>
+      <button onclick="motor.emergencyStop()" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-md shadow-red-900/40">
+        <i class="fa-solid fa-triangle-exclamation"></i> <span>E-STOP</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER WITH SIDEBAR & DASHBOARD -->
+  <div class="flex flex-1 overflow-hidden relative">
+
+    <!-- SIDEBAR (POWERBI DASHBOARD NAVIGATION & PRESETS) -->
+    <aside id="sidebar" class="w-64 bg-slate-900/95 border-r border-slate-800 flex flex-col justify-between transition-all duration-300 z-20 absolute md:relative h-full">
+      <div class="p-4 space-y-6 overflow-y-auto">
+        
+        <!-- SECTION: ESCENARIOS PREDEFINIDOS -->
+        <div class="space-y-2">
+          <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-orange-400"></i> Escenarios de Práctica
+          </h3>
+          <p class="text-xs text-slate-400">Carga condiciones industriales reales:</p>
+          
+          <div class="space-y-2 pt-1">
+            <button onclick="motor.loadScenario(1)" id="btn-scen-1" class="w-full text-left p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 transition-all group">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-emerald-400 group-hover:text-emerald-300">Escenario 1</span>
+                <i class="fa-solid fa-conveyor-belt text-xs text-slate-500"></i>
+              </div>
+              <p class="text-[11px] text-slate-300 font-semibold mt-0.5">Cinta Transportadora</p>
+              <p class="text-[10px] text-slate-400">Operación Nominal (380V, Carga Estable)</p>
+            </button>
+
+            <button onclick="motor.loadScenario(2)" id="btn-scen-2" class="w-full text-left p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 transition-all group">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-400 group-hover:text-amber-300">Escenario 2</span>
+                <i class="fa-solid fa-triangle-exclamation text-xs text-slate-500"></i>
+              </div>
+              <p class="text-[11px] text-slate-300 font-semibold mt-0.5">Sobrecarga y Atasque</p>
+              <p class="text-[10px] text-slate-400">Torque extremo, Amperaje crítico & Térmico</p>
+            </button>
+
+            <button onclick="motor.loadScenario(3)" id="btn-scen-3" class="w-full text-left p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 transition-all group">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-sky-400 group-hover:text-sky-300">Escenario 3</span>
+                <i class="fa-solid fa-water text-xs text-slate-500"></i>
+              </div>
+              <p class="text-[11px] text-slate-300 font-semibold mt-0.5">Arranque VFD (Bomba)</p>
+              <p class="text-[10px] text-slate-400">Rampa de Frecuencia y Control de Inrush</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- SECTION: MOTOR SPECIFICATIONS -->
+        <div class="space-y-3 pt-2 border-t border-slate-800">
+          <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <i class="fa-solid fa-microchip text-yellow-400"></i> Ficha Técnica del Motor
+          </h3>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 text-xs space-y-1.5 font-mono">
+            <div class="flex justify-between text-slate-300">
+              <span class="text-slate-500">Tipo:</span>
+              <span class="font-bold text-slate-200">Trifásico Jaula Ardilla</span>
+            </div>
+            <div class="flex justify-between text-slate-300">
+              <span class="text-slate-500">Potencia Nom:</span>
+              <span class="text-amber-400">15 HP / 11 kW</span>
+            </div>
+            <div class="flex justify-between text-slate-300">
+              <span class="text-slate-500">Tensión Nom:</span>
+              <span class="text-emerald-400">380 V / 50 Hz</span>
+            </div>
+            <div class="flex justify-between text-slate-300">
+              <span class="text-slate-500">Corriente Nom:</span>
+              <span class="text-sky-400">22.5 A</span>
+            </div>
+            <div class="flex justify-between text-slate-300">
+              <span class="text-slate-500">RPM Síncronas:</span>
+              <span class="text-orange-400">1800 RPM</span>
+            </div>
+            <div class="flex justify-between text-slate-300">
+              <span class="text-slate-500">Temp Máxima:</span>
+              <span class="text-red-400">105 °C</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION: MOTOR HEALTH INDICATOR -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <i class="fa-solid fa-heart-pulse text-red-400"></i> Salud del Aislamiento
+          </h3>
+          <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 p-0.5">
+            <div id="health-bar" class="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-emerald-500 rounded-full transition-all duration-300" style="width: 100%;"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+            <span>Degradado</span>
+            <span id="health-percent" class="text-emerald-400 font-bold">100%</span>
+            <span>Óptimo</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SIDEBAR FOOTER -->
+      <div class="p-3 border-t border-slate-800 bg-slate-950/60 text-center text-[10px] text-slate-500">
+        SimuMotor Telemetry System v2.4
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA (POWERBI DASHBOARD GRID) -->
+    <main class="flex-1 p-4 overflow-y-auto bg-slate-950 space-y-4">
+
+      <!-- TOP KPI CARDS (6 METRICS WITH WARM COLOR ACCENTS) -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        
+        <!-- CARD 1: VOLTAGE -->
+        <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl relative overflow-hidden transition-all duration-300 glow-green" id="kpi-card-voltage">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider">Voltaje (V)</span>
+            <i class="fa-solid fa-bolt text-emerald-400 text-sm"></i>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="kpi-voltage" class="font-heading font-black text-2xl text-white">380</span>
+            <span class="text-xs font-bold text-slate-400">V</span>
+          </div>
+          <div class="mt-2 w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+            <div id="bar-voltage" class="bg-emerald-500 h-full transition-all duration-300" style="width: 82%;"></div>
+          </div>
+          <span class="text-[9px] text-slate-400 mt-1 block font-mono">Nominal: 380V ±10%</span>
+        </div>
+
+        <!-- CARD 2: AMPERAGE -->
+        <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl relative overflow-hidden transition-all duration-300" id="kpi-card-current">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider">Amperaje (I)</span>
+            <i class="fa-solid fa-wave-square text-sky-400 text-sm"></i>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="kpi-current" class="font-heading font-black text-2xl text-white">21.8</span>
+            <span class="text-xs font-bold text-slate-400">A</span>
+          </div>
+          <div class="mt-2 w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+            <div id="bar-current" class="bg-sky-500 h-full transition-all duration-300" style="width: 50%;"></div>
+          </div>
+          <span class="text-[9px] text-slate-400 mt-1 block font-mono">Máx Seguro: 25.0A</span>
+        </div>
+
+        <!-- CARD 3: SPEED RPM -->
+        <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl relative overflow-hidden transition-all duration-300" id="kpi-card-rpm">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider">Velocidad</span>
+            <i class="fa-solid fa-gauge-high text-yellow-400 text-sm"></i>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="kpi-rpm" class="font-heading font-black text-2xl text-white">1745</span>
+            <span class="text-xs font-bold text-slate-400">RPM</span>
+          </div>
+          <div class="mt-2 w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+            <div id="bar-rpm" class="bg-yellow-500 h-full transition-all duration-300" style="width: 96%;"></div>
+          </div>
+          <span class="text-[9px] text-slate-400 mt-1 block font-mono">Deslizamiento: <span id="kpi-slip">3.1%</span></span>
+        </div>
+
+        <!-- CARD 4: OUTPUT POWER -->
+        <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl relative overflow-hidden transition-all duration-300" id="kpi-card-power">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider">Potencia Salida</span>
+            <i class="fa-solid fa-plug text-orange-400 text-sm"></i>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="kpi-power" class="font-heading font-black text-2xl text-white">10.8</span>
+            <span class="text-xs font-bold text-slate-400">kW</span>
+          </div>
+          <div class="mt-2 w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+            <div id="bar-power" class="bg-orange-500 h-full transition-all duration-300" style="width: 72%;"></div>
+          </div>
+          <span class="text-[9px] text-slate-400 mt-1 block font-mono">Torque: <span id="kpi-torque-val">59.1 N·m</span></span>
+        </div>
+
+        <!-- CARD 5: EFFICIENCY -->
+        <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl relative overflow-hidden transition-all duration-300" id="kpi-card-efficiency">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider">Eficiencia</span>
+            <i class="fa-solid fa-chart-line text-emerald-400 text-sm"></i>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="kpi-efficiency" class="font-heading font-black text-2xl text-white">91.4</span>
+            <span class="text-xs font-bold text-slate-400">%</span>
+          </div>
+          <div class="mt-2 w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+            <div id="bar-efficiency" class="bg-emerald-500 h-full transition-all duration-300" style="width: 91%;"></div>
+          </div>
+          <span class="text-[9px] text-slate-400 mt-1 block font-mono">Factor Potencia: 0.88</span>
+        </div>
+
+        <!-- CARD 6: TEMPERATURE -->
+        <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl relative overflow-hidden transition-all duration-300" id="kpi-card-temp">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider">Temperatura</span>
+            <i class="fa-solid fa-temperature-three-quarters text-red-400 text-sm"></i>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="kpi-temp" class="font-heading font-black text-2xl text-white">48.2</span>
+            <span class="text-xs font-bold text-slate-400">°C</span>
+          </div>
+          <div class="mt-2 w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+            <div id="bar-temp" class="bg-red-500 h-full transition-all duration-300" style="width: 45%;"></div>
+          </div>
+          <span class="text-[9px] text-slate-400 mt-1 block font-mono">Alarma a > 90°C</span>
+        </div>
+
+      </div>
+
+      <!-- MIDDLE ROW: MOTOR ANIMATED CANVAS & CONTROL PANEL -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        <!-- VISUAL MOTOR SIMULATOR CANVAS (7 COLS) -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-4 flex flex-col justify-between relative shadow-xl">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-orange-500/20 text-orange-400">
+                <i class="fa-solid fa-dharmachakra"></i>
+              </span>
+              <div>
+                <h3 class="font-heading font-bold text-sm text-white">Renderizado Físico del Motor</h3>
+                <p class="text-[10px] text-slate-400">Animación en tiempo real según RPM, Temperatura y Carga</p>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <span class="flex items-center gap-1 text-slate-400"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Normal</span>
+              <span class="flex items-center gap-1 text-slate-400"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Carga</span>
+              <span class="flex items-center gap-1 text-slate-400"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> Crítico</span>
+            </div>
+          </div>
+
+          <!-- CANVAS ELEMENT -->
+          <div class="relative w-full h-64 bg-slate-950 rounded-2xl border border-slate-800/80 overflow-hidden flex items-center justify-center">
+            <canvas id="motorCanvas" class="w-full h-full block"></canvas>
+
+            <!-- OVERLAY WARNING TOAST IN CANVAS -->
+            <div id="canvas-overlay-warning" class="hidden absolute top-4 left-1/2 -translate-x-1/2 bg-red-600/90 text-white font-heading font-bold text-xs px-4 py-1.5 rounded-full border border-red-400 shadow-lg animate-alarm flex items-center gap-2">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span id="canvas-warning-msg">¡SOBRECARGA TÉRMICA DETECTADA!</span>
+            </div>
+          </div>
+
+          <!-- MOTOR STATUS SUMMARY STRIP -->
+          <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-center text-xs">
+            <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+              <span class="text-[10px] text-slate-500 uppercase block font-semibold">Flujo Magnético</span>
+              <span id="info-flux" class="font-mono font-bold text-emerald-400">100% (Estable)</span>
+            </div>
+            <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+              <span class="text-[10px] text-slate-500 uppercase block font-semibold">Carga Mecánica</span>
+              <span id="info-load-percent" class="font-mono font-bold text-amber-400">65% Torque Nom</span>
+            </div>
+            <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+              <span class="text-[10px] text-slate-500 uppercase block font-semibold">Ventilación Forzada</span>
+              <span id="info-fan-status" class="font-mono font-bold text-sky-400">ACTIVA (100%)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- INTERACTIVE CONTROLS PANEL (5 COLS) -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-4 flex flex-col justify-between shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+                <i class="fa-solid fa-sliders"></i>
+              </span>
+              <h3 class="font-heading font-bold text-sm text-white">Panel de Variables de Entorno</h3>
+            </div>
+            <button onclick="motor.resetToDefaults()" class="text-[11px] text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg transition-colors">
+              <i class="fa-solid fa-rotate-left mr-1"></i> Restablecer
+            </button>
+          </div>
+
+          <!-- SLIDER 1: VOLTAGE CONTROL -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs">
+              <label for="slider-voltage" class="font-semibold text-slate-200 flex items-center gap-1.5">
+                <i class="fa-solid fa-bolt text-emerald-400"></i> Tensión Alimentación (V)
+              </label>
+              <span id="val-voltage" class="font-mono font-bold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">380 V</span>
+            </div>
+            <input type="range" id="slider-voltage" min="0" max="500" value="380" step="1" class="w-full">
+            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+              <span>0V</span>
+              <span>220V</span>
+              <span class="text-emerald-400 font-bold">380V Nom</span>
+              <span>480V</span>
+            </div>
+          </div>
+
+          <!-- SLIDER 2: LOAD TORQUE CONTROL -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs">
+              <label for="slider-load" class="font-semibold text-slate-200 flex items-center gap-1.5">
+                <i class="fa-solid fa-weight-hanging text-amber-400"></i> Carga Mecánica / Torque (N·m)
+              </label>
+              <span id="val-load" class="font-mono font-bold text-amber-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">45 N·m</span>
+            </div>
+            <input type="range" id="slider-load" min="0" max="150" value="45" step="1" class="w-full">
+            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+              <span>0 N·m (Vacío)</span>
+              <span class="text-amber-400 font-bold">60 N·m (100%)</span>
+              <span class="text-red-400 font-bold">150 N·m (Bloqueo)</span>
+            </div>
+          </div>
+
+          <!-- SLIDER 3: FREQUENCY / VFD CONTROL -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs">
+              <label for="slider-freq" class="font-semibold text-slate-200 flex items-center gap-1.5">
+                <i class="fa-solid fa-wave-square text-sky-400"></i> Frecuencia VFD (Hz)
+              </label>
+              <span id="val-freq" class="font-mono font-bold text-sky-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">50 Hz</span>
+            </div>
+            <input type="range" id="slider-freq" min="5" max="75" value="50" step="0.5" class="w-full">
+            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+              <span>5 Hz</span>
+              <span class="text-sky-400 font-bold">50 Hz Nom</span>
+              <span>75 Hz</span>
+            </div>
+          </div>
+
+          <!-- TOGGLES & AUXILIARY CONTROLS -->
+          <div class="pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-3">
+            <!-- COOLING FAN OVERRIDE -->
+            <button id="btn-toggle-fan" onclick="motor.toggleCoolingFan()" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-between text-xs transition-all">
+              <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-fan text-sky-400" id="fan-icon"></i> Ventilación
+              </span>
+              <span id="fan-badge" class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">ON</span>
+            </button>
+
+            <!-- TRIP RESET BUTTON -->
+            <button id="btn-reset-trip" onclick="motor.resetTrip()" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-between text-xs transition-all opacity-50 cursor-not-allowed" disabled>
+              <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-rotate text-orange-400"></i> Reset Relé
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono">OK</span>
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- BOTTOM ROW: REAL-TIME CHART TELEMETRY (2 CHARTS) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        
+        <!-- CHART 1: AMPERAGE & RPM OVER TIME -->
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <h3 class="font-heading font-bold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-line text-sky-400"></i> Telemetría: Corriente (A) y Velocidad (RPM)
+            </h3>
+            <span class="text-[10px] text-slate-500 font-mono">Ventana: 30 Segundos</span>
+          </div>
+          <div class="w-full h-48 relative">
+            <canvas id="chartCurrentRpm"></canvas>
+          </div>
+        </div>
+
+        <!-- CHART 2: POWER & TEMPERATURE OVER TIME -->
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <h3 class="font-heading font-bold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-area text-red-400"></i> Telemetría: Potencia (kW) y Temperatura (°C)
+            </h3>
+            <span class="text-[10px] text-slate-500 font-mono">Ventana: 30 Segundos</span>
+          </div>
+          <div class="w-full h-48 relative">
+            <canvas id="chartPowerTemp"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- TOAST NOTIFICATION SYSTEM -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- SIMULATOR JAVASCRIPT ENGINE -->
+  <script>
+    /* ==========================================================================
+       PHYSICS & ENGINE STATE FOR SIMUMOTOR PRO
+       ========================================================================== */
+    class MotorSimulator {
+      constructor() {
+        // Motor Physical Constants (15 HP Industrial Triphasic Motor)
+        this.nominalVoltage = 380;   // V
+        this.nominalCurrent = 22.5;  // A
+        this.noLoadCurrent = 7.2;    // A (Magnetizing current)
+        this.nominalFreq = 50;       // Hz
+        this.syncRPM = 1800;         // RPM at 60Hz or 1500 at 50Hz (2-pole/4-pole)
+        this.ratedTorque = 60;       // N·m
+        this.maxTempLimit = 105;     // °C
+        this.ambientTemp = 25;       // °C
+        this.windingResistance = 0.45; // Ohms
+
+        // Dynamic User Input Variables
+        this.voltage = 380;          // Volts
+        this.loadTorque = 45;        // N·m
+        this.freq = 50;              // Hz
+        this.fanActive = true;
+        
+        // Dynamic Motor Operational States
+        this.isRunning = true;
+        this.isTripped = false;
+        this.tripReason = "";
+        
+        this.rpm = 1745;
+        this.current = 21.8;
+        this.powerOut = 10.8;         // kW
+        this.powerIn = 11.8;          // kW
+        this.efficiency = 91.4;       // %
+        this.temperature = 48.2;      // °C
+        this.slip = 3.1;              // %
+        this.health = 100;            // %
+
+        // VFD Soft Starter Ramping state
+        this.isRamping = false;
+        this.targetFreq = 50;
+        this.rampedFreq = 50;
+
+        // Visual Canvas Engine
+        this.canvas = document.getElementById('motorCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.rotationAngle = 0;
+
+        // Telemetry Data Buffers (for Charts)
+        this.maxDataPoints = 30;
+        this.telemetryLabels = Array.from({length: 30}, (_, i) => `-${30 - i}s`);
+        this.dataCurrent = Array(30).fill(21.8);
+        this.dataRPM = Array(30).fill(1745);
+        this.dataPower = Array(30).fill(10.8);
+        this.dataTemp = Array(30).fill(48.2);
+
+        // Chart.js instances
+        this.chartCR = null;
+        this.chartPT = null;
+
+        // Clock & Intervals
+        this.simInterval = null;
+      }
+
+      init() {
+        this.setupEventListeners();
+        this.setupCharts();
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+
+        // Start Physics Engine Loop (Every 100ms)
+        this.simInterval = setInterval(() => this.updatePhysics(), 100);
+
+        // Start Real-Time Render Loop (60 FPS)
+        const renderLoop = () => {
+          this.renderCanvas();
+          requestAnimationFrame(renderLoop);
+        };
+        requestAnimationFrame(renderLoop);
+
+        // Clock Loop
+        setInterval(() => {
+          const now = new Date();
+          document.getElementById('live-clock').textContent = now.toLocaleTimeString();
+        }, 1000);
+
+        this.showToast("Sistema de Telemetría Inicializado", "info");
+      }
+
+      setupEventListeners() {
+        // Voltage Slider
+        const sliderV = document.getElementById('slider-voltage');
+        sliderV.addEventListener('input', (e) => {
+          this.voltage = parseFloat(e.target.value);
+          document.getElementById('val-voltage').textContent = `${this.voltage} V`;
+        });
+
+        // Load Torque Slider
+        const sliderT = document.getElementById('slider-load');
+        sliderT.addEventListener('input', (e) => {
+          this.loadTorque = parseFloat(e.target.value);
+          document.getElementById('val-load').textContent = `${this.loadTorque} N·m`;
+        });
+
+        // Frequency Slider
+        const sliderF = document.getElementById('slider-freq');
+        sliderF.addEventListener('input', (e) => {
+          this.freq = parseFloat(e.target.value);
+          document.getElementById('val-freq').textContent = `${this.freq} Hz`;
+        });
+
+        // Sidebar toggle for mobile
+        document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
+          const sidebar = document.getElementById('sidebar');
+          sidebar.classList.toggle('-translate-x-full');
+        });
+      }
+
+      /* ==========================================================================
+         PHYSICS COMPUTATION ENGINE
+         ========================================================================== */
+      updatePhysics() {
+        if (this.isTripped) {
+          // Motor stopped due to thermal or electrical trip
+          this.rpm = Math.max(0, this.rpm * 0.85);
+          this.current = 0;
+          this.powerOut = 0;
+          this.powerIn = 0;
+          this.efficiency = 0;
+          // Cool down towards ambient
+          this.temperature = Math.max(this.ambientTemp, this.temperature - (this.temperature - this.ambientTemp) * 0.02);
+          this.updateUI();
+          this.updateCharts();
+          return;
+        }
+
+        if (!this.isRunning) {
+          // Normal Stopped state
+          this.rpm = Math.max(0, this.rpm * 0.85);
+          this.current = 0;
+          this.powerOut = 0;
+          this.powerIn = 0;
+          this.efficiency = 0;
+          this.temperature = Math.max(this.ambientTemp, this.temperature - (this.temperature - this.ambientTemp) * 0.03);
+          this.updateUI();
+          this.updateCharts();
+          return;
+        }
+
+        // Handle VFD Soft Ramping if active
+        if (this.isRamping) {
+          if (this.rampedFreq < this.targetFreq) {
+            this.rampedFreq += 1.0; // Ramp up 1 Hz per 100ms
+          } else {
+            this.rampedFreq = this.targetFreq;
+            this.isRamping = false;
+          }
+          this.freq = this.rampedFreq;
+          document.getElementById('slider-freq').value = this.freq;
+          document.getElementById('val-freq').textContent = `${this.freq.toFixed(1)} Hz`;
+        }
+
+        // 1. Calculate Synchronous Speed based on Frequency (4-pole motor: RPM_sync = 120 * f / 4)
+        const currentSyncRPM = (120 * this.freq) / 4;
+
+        // 2. Voltage factor relative to nominal
+        const vFactor = this.voltage / this.nominalVoltage;
+
+        if (this.voltage < 30) {
+          // Undervoltage stall condition
+          this.rpm = Math.max(0, this.rpm * 0.8);
+          this.current = (this.voltage > 5) ? 35 * (this.voltage / 30) : 0; // High locked rotor current effort
+        } else {
+          // 3. Torque & Slip physics
+          // Slip increases with load torque, inversely with voltage squared
+          const breakdownTorque = 140 * Math.pow(vFactor, 2);
+          
+          if (this.loadTorque > breakdownTorque) {
+            // Motor Stalls! Locked Rotor condition
+            this.slip = 100;
+            this.rpm = Math.max(0, this.rpm * 0.7);
+            // Inrush / Locked Rotor Current (approx 6x nominal)
+            this.current = 120 * vFactor;
+            this.triggerTrip("¡DISPARO POR BLOQUEO MECÁNICO (STALL)!");
+          } else {
+            // Normal operating slip
+            this.slip = Math.min(100, (this.loadTorque / (breakdownTorque * 0.8)) * 8);
+            this.rpm = Math.max(0, currentSyncRPM * (1 - this.slip / 100));
+
+            // Current calculation: magnetizing component + load component
+            const loadCurrentComp = (this.loadTorque / this.ratedTorque) * (this.nominalCurrent - this.noLoadCurrent);
+            this.current = (this.noLoadCurrent + loadCurrentComp) / Math.max(0.4, vFactor);
+          }
+        }
+
+        // Add minor physics noise for realism
+        if (this.rpm > 10) {
+          this.rpm += (Math.random() - 0.5) * 4;
+          this.current += (Math.random() - 0.5) * 0.3;
+        }
+
+        // 4. Power Output & Input
+        // Mechanical Power Out = (Torque * RPM * 2 * PI) / 60,000 (kW)
+        this.powerOut = Math.max(0, (this.loadTorque * this.rpm * 2 * Math.PI) / 60000);
+
+        // Power Factor (varies with load)
+        const pf = 0.2 + 0.68 * Math.min(1, this.loadTorque / this.ratedTorque);
+        
+        // Electrical Power In (3-Phase) = sqrt(3) * V * I * PF / 1000
+        this.powerIn = (Math.sqrt(3) * this.voltage * this.current * pf) / 1000;
+
+        // Efficiency (%)
+        if (this.powerIn > 0.5) {
+          this.efficiency = Math.min(96, Math.max(0, (this.powerOut / this.powerIn) * 100));
+        } else {
+          this.efficiency = 0;
+        }
+
+        // 5. Thermal Buildup Physics (I^2 * R heating vs Fan Cooling)
+        const iSquaredLosses = Math.pow(this.current, 2) * this.windingResistance * 0.015;
+        const frictionHeat = (this.rpm / 1800) * 0.5;
+        const coolingFactor = this.fanActive ? (0.25 + (this.rpm / 1800) * 0.5) : 0.05;
+
+        // Delta Temp step
+        const heatGenerated = iSquaredLosses + frictionHeat;
+        const heatDissipated = (this.temperature - this.ambientTemp) * coolingFactor;
+        this.temperature += (heatGenerated - heatDissipated) * 0.05;
+
+        // 6. Thermal Health Degradation & Overheat Trip
+        if (this.temperature > 85) {
+          this.health = Math.max(0, this.health - 0.1);
+        }
+        if (this.temperature >= this.maxTempLimit) {
+          this.triggerTrip("¡DISPARO POR SOBRETEMPERATURA (CRÍTICO 105°C)!");
+        }
+
+        // Overcurrent trip (e.g., > 180% nominal for > 5s)
+        if (this.current > 42) {
+          this.triggerTrip("¡DISPARO POR SOBRECORRIENTE (SOBRECARGA ELÉCTRICA)!");
+        }
+
+        this.updateUI();
+        this.updateCharts();
+      }
+
+      triggerTrip(reason) {
+        if (this.isTripped) return;
+        this.isTripped = true;
+        this.isRunning = false;
+        this.tripReason = reason;
+
+        this.showToast(reason, "danger");
+
+        // Enable Reset Button
+        const btnReset = document.getElementById('btn-reset-trip');
+        btnReset.disabled = false;
+        btnReset.classList.remove('opacity-50', 'cursor-not-allowed');
+        btnReset.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white', 'animate-pulse');
+      }
+
+      resetTrip() {
+        if (!this.isTripped) return;
+        if (this.temperature > 90) {
+          this.showToast("No se puede reiniciar: Motor aún muy caliente (>90°C)", "warning");
+          return;
+        }
+        this.isTripped = false;
+        this.tripReason = "";
+        
+        const btnReset = document.getElementById('btn-reset-trip');
+        btnReset.disabled = true;
+        btnReset.classList.add('opacity-50', 'cursor-not-allowed');
+        btnReset.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white', 'animate-pulse');
+
+        this.showToast("Relé Térmico Reiniciado Con Éxito", "success");
+      }
+
+      startMotor() {
+        if (this.isTripped) {
+          this.showToast("¡Imposible arrancar! Motor en estado de DISPARO", "danger");
+          return;
+        }
+        this.isRunning = true;
+        this.showToast("Comando de ARRANQUE Enviado", "success");
+      }
+
+      stopMotor() {
+        this.isRunning = false;
+        this.showToast("Comando de PARADA Enviado", "warning");
+      }
+
+      emergencyStop() {
+        this.isRunning = false;
+        this.triggerTrip("¡PARO DE EMERGENCIA ACCIONADO!");
+      }
+
+      toggleCoolingFan() {
+        this.fanActive = !this.fanActive;
+        const icon = document.getElementById('fan-icon');
+        const badge = document.getElementById('fan-badge');
+
+        if (this.fanActive) {
+          icon.classList.add('text-sky-400');
+          badge.textContent = "ON";
+          badge.className = "px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold";
+          this.showToast("Ventilador Activado", "info");
+        } else {
+          icon.classList.remove('text-sky-400');
+          badge.textContent = "OFF";
+          badge.className = "px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold";
+          this.showToast("¡Ventilación Forzada DESACTIVADA!", "warning");
+        }
+      }
+
+      /* ==========================================================================
+         PRESET SCENARIOS LOADER
+         ========================================================================== */
+      loadScenario(id) {
+        this.resetTrip();
+
+        if (id === 1) {
+          // Scenario 1: Nominal Conveyor Belt
+          this.voltage = 380;
+          this.loadTorque = 45;
+          this.freq = 50;
+          this.fanActive = true;
+          this.isRunning = true;
+          this.isRamping = false;
+
+          document.getElementById('slider-voltage').value = 380;
+          document.getElementById('slider-load').value = 45;
+          document.getElementById('slider-freq').value = 50;
+          document.getElementById('val-voltage').textContent = "380 V";
+          document.getElementById('val-load').textContent = "45 N·m";
+          document.getElementById('val-freq').textContent = "50 Hz";
+
+          this.showToast("Escenario 1 Cargado: Cinta Transportadora (Operación Nominal)", "success");
+        } 
+        else if (id === 2) {
+          // Scenario 2: Severe Mechanical Overload
+          this.voltage = 380;
+          this.loadTorque = 125; // High torque overload
+          this.freq = 50;
+          this.fanActive = false; // Fan failure!
+          this.isRunning = true;
+          this.isRamping = false;
+
+          document.getElementById('slider-voltage').value = 380;
+          document.getElementById('slider-load').value = 125;
+          document.getElementById('slider-freq').value = 50;
+          document.getElementById('val-voltage').textContent = "380 V";
+          document.getElementById('val-load').textContent = "125 N·m";
+          document.getElementById('val-freq').textContent = "50 Hz";
+
+          this.fanActive = false;
+          document.getElementById('fan-badge').textContent = "OFF";
+          document.getElementById('fan-badge').className = "px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold";
+
+          this.showToast("Escenario 2 Cargado: Sobrecarga y Atasque de Molino", "warning");
+        } 
+        else if (id === 3) {
+          // Scenario 3: Soft Start VFD Water Pump
+          this.voltage = 380;
+          this.loadTorque = 30;
+          this.freq = 5; // Start at 5Hz
+          this.targetFreq = 50;
+          this.rampedFreq = 5;
+          this.isRamping = true;
+          this.isRunning = true;
+          this.fanActive = true;
+
+          document.getElementById('slider-voltage').value = 380;
+          document.getElementById('slider-load').value = 30;
+          document.getElementById('slider-freq').value = 5;
+          document.getElementById('val-voltage').textContent = "380 V";
+          document.getElementById('val-load').textContent = "30 N·m";
+          document.getElementById('val-freq').textContent = "5 Hz";
+
+          this.showToast("Escenario 3 Cargado: Arranque Suave VFD (Bomba)", "info");
+        }
+      }
+
+      resetToDefaults() {
+        this.loadScenario(1);
+      }
+
+      /* ==========================================================================
+         UI & KPI CARD UPDATES
+         ========================================================================== */
+      updateUI() {
+        // Values
+        document.getElementById('kpi-voltage').textContent = Math.round(this.voltage);
+        document.getElementById('kpi-current').textContent = this.current.toFixed(1);
+        document.getElementById('kpi-rpm').textContent = Math.round(this.rpm);
+        document.getElementById('kpi-power').textContent = this.powerOut.toFixed(1);
+        document.getElementById('kpi-efficiency').textContent = this.efficiency.toFixed(1);
+        document.getElementById('kpi-temp').textContent = this.temperature.toFixed(1);
+
+        document.getElementById('kpi-slip').textContent = `${this.slip.toFixed(1)}%`;
+        document.getElementById('kpi-torque-val').textContent = `${this.loadTorque.toFixed(1)} N·m`;
+
+        // Progress Bars inside KPI cards
+        document.getElementById('bar-voltage').style.width = `${Math.min(100, (this.voltage / 500) * 100)}%`;
+        document.getElementById('bar-current').style.width = `${Math.min(100, (this.current / 50) * 100)}%`;
+        document.getElementById('bar-rpm').style.width = `${Math.min(100, (this.rpm / 2000) * 100)}%`;
+        document.getElementById('bar-power').style.width = `${Math.min(100, (this.powerOut / 15) * 100)}%`;
+        document.getElementById('bar-efficiency').style.width = `${Math.min(100, this.efficiency)}%`;
+        document.getElementById('bar-temp').style.width = `${Math.min(100, (this.temperature / 120) * 100)}%`;
+
+        // Health bar
+        document.getElementById('health-bar').style.width = `${this.health}%`;
+        document.getElementById('health-percent').textContent = `${Math.round(this.health)}%`;
+
+        // Status Badge Updating (Warm Colors Logic)
+        const badge = document.getElementById('status-badge');
+        const badgeText = document.getElementById('status-text');
+
+        if (this.isTripped) {
+          badge.className = "flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-bold animate-alarm";
+          badgeText.textContent = `DISPARADO: ${this.tripReason}`;
+        } else if (!this.isRunning) {
+          badge.className = "flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-xs font-bold";
+          badgeText.textContent = "DETENIDO";
+        } else if (this.temperature > 85 || this.current > 30) {
+          badge.className = "flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/40 text-xs font-bold animate-pulse";
+          badgeText.textContent = "ALERTA: SOBRECARGA / CALOR";
+        } else if (this.temperature > 70 || this.loadTorque > 50) {
+          badge.className = "flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-xs font-bold";
+          badgeText.textContent = "PRECAUCIÓN: CARGA ALTA";
+        } else {
+          badge.className = "flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold";
+          badgeText.textContent = "OPERANDO NORMAL";
+        }
+
+        // Summary Info
+        document.getElementById('info-flux').textContent = `${Math.round((this.voltage / 380) * 100)}% (${this.voltage > 350 ? 'Estable' : 'Bajo'})`;
+        document.getElementById('info-load-percent').textContent = `${Math.round((this.loadTorque / 60) * 100)}% Torque Nom`;
+        document.getElementById('info-fan-status').textContent = this.fanActive ? "ACTIVA (100%)" : "DESACTIVADA (0%)";
+
+        // Canvas Overlay Warning
+        const warningBox = document.getElementById('canvas-overlay-warning');
+        if (this.temperature > 90 || this.current > 35) {
+          warningBox.classList.remove('hidden');
+          document.getElementById('canvas-warning-msg').textContent = this.temperature > 90 ? "¡TEMPERATURA DE AISLAMIENTO CRÍTICA!" : "¡SOBRECORRIENTE EXTREMA!";
+        } else {
+          warningBox.classList.add('hidden');
+        }
+      }
+
+      /* ==========================================================================
+         CANVAS MOTOR RENDERER (ANIMATED 2D INDUSTRIAL MODEL)
+         ========================================================================== */
+      resizeCanvas() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+      }
+
+      renderCanvas() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        if (!w || !h) return;
+
+        this.ctx.clearRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = h / 2;
+
+        // Update Rotation Angle based on RPM
+        if (this.isRunning && !this.isTripped) {
+          this.rotationAngle += (this.rpm / 60) * 0.15;
+        }
+
+        // Color transition based on Temperature (Warm Palette: Emerald -> Yellow -> Orange -> Red)
+        let bodyColor = "#1e293b"; // Default slate
+        let glowColor = "rgba(34, 197, 94, 0.2)"; // Green
+
+        if (this.temperature > 90) {
+          bodyColor = "#450a0a";
+          glowColor = "rgba(239, 68, 68, 0.6)"; // Red
+        } else if (this.temperature > 75) {
+          bodyColor = "#431407";
+          glowColor = "rgba(249, 115, 22, 0.4)"; // Orange
+        } else if (this.temperature > 55) {
+          bodyColor = "#3f2c06";
+          glowColor = "rgba(234, 179, 8, 0.3)"; // Yellow
+        }
+
+        // 1. Draw Thermal Heat Aura / Glow
+        const auraGrad = this.ctx.createRadialGradient(cx, cy, 60, cx, cy, 140);
+        auraGrad.addColorStop(0, glowColor);
+        auraGrad.addColorStop(1, "transparent");
+        this.ctx.fillStyle = auraGrad;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, 140, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // 2. Draw Stator Housing Fins (Outer Motor Body)
+        this.ctx.save();
+        this.ctx.translate(cx, cy);
+
+        // Stator Outer Ring
+        this.ctx.fillStyle = bodyColor;
+        this.ctx.strokeStyle = "#475569";
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 90, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        // Cooling Fins around stator
+        const numFins = 16;
+        for (let i = 0; i < numFins; i++) {
+          const angle = (i * Math.PI * 2) / numFins;
+          const fx = Math.cos(angle) * 90;
+          const fy = Math.sin(angle) * 90;
+          const fxOut = Math.cos(angle) * 105;
+          const fyOut = Math.sin(angle) * 105;
+
+          this.ctx.strokeStyle = (this.temperature > 80) ? "#ef4444" : "#64748b";
+          this.ctx.lineWidth = 4;
+          this.ctx.beginPath();
+          this.ctx.moveTo(fx, fy);
+          this.ctx.lineTo(fxOut, fyOut);
+          this.ctx.stroke();
+        }
+
+        // 3. Draw Inner Rotor Air Gap
+        this.ctx.fillStyle = "#0f172a";
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 60, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.strokeStyle = "#334155";
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+
+        // 4. Draw Rotating Shaft with Keyway & Bars
+        this.ctx.save();
+        this.ctx.rotate(this.rotationAngle);
+
+        // Rotor Iron Core
+        this.ctx.fillStyle = "#334155";
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 45, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Squirrel Cage Copper Bars
+        const numBars = 8;
+        for (let i = 0; i < numBars; i++) {
+          const barAngle = (i * Math.PI * 2) / numBars;
+          const bx = Math.cos(barAngle) * 32;
+          const by = Math.sin(barAngle) * 32;
+
+          this.ctx.fillStyle = "#f97316"; // Copper Orange
+          this.ctx.beginPath();
+          this.ctx.arc(bx, by, 5, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+
+        // Shaft Center
+        this.ctx.fillStyle = "#94a3b8";
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Shaft Keyway slot (shows rotation clearly)
+        this.ctx.fillStyle = "#1e293b";
+        this.ctx.fillRect(8, -3, 8, 6);
+
+        this.ctx.restore(); // Restore Rotor rotation
+
+        // 5. Draw Terminal Junction Box on Top
+        this.ctx.fillStyle = "#334155";
+        this.ctx.strokeStyle = "#64748b";
+        this.ctx.lineWidth = 2;
+        this.ctx.fillRect(-25, -115, 50, 25);
+        this.ctx.strokeRect(-25, -115, 50, 25);
+
+        // Voltage Spark Line if Running
+        if (this.isRunning && this.voltage > 50) {
+          this.ctx.fillStyle = "#38bdf8";
+          this.ctx.beginPath();
+          this.ctx.arc(-10, -102, 3, 0, Math.PI * 2);
+          this.ctx.arc(0, -102, 3, 0, Math.PI * 2);
+          this.ctx.arc(10, -102, 3, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+
+        this.ctx.restore(); // Restore Stator translation
+      }
+
+      /* ==========================================================================
+         TELEMETRY CHARTS ENGINE (CHART.JS)
+         ========================================================================== */
+      setupCharts() {
+        const commonOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: {
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#64748b', font: { size: 9 } }
+            },
+            y: {
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#94a3b8', font: { size: 9 } }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1', font: { size: 10, family: 'Inter' } }
+            }
+          }
+        };
+
+        // Chart 1: Current (A) & RPM
+        const ctxCR = document.getElementById('chartCurrentRpm').getContext('2d');
+        this.chartCR = new Chart(ctxCR, {
+          type: 'line',
+          data: {
+            labels: this.telemetryLabels,
+            datasets: [
+              {
+                label: 'Corriente (A)',
+                data: this.dataCurrent,
+                borderColor: '#38bdf8',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                borderWidth: 2,
+                tension: 0.2,
+                fill: true,
+                yAxisID: 'y'
+              },
+              {
+                label: 'Velocidad (RPM)',
+                data: this.dataRPM,
+                borderColor: '#eab308',
+                borderWidth: 2,
+                tension: 0.2,
+                yAxisID: 'y1'
+              }
+            ]
+          },
+          options: {
+            ...commonOptions,
+            scales: {
+              ...commonOptions.scales,
+              y: {
+                ...commonOptions.scales.y,
+                title: { display: true, text: 'Amperios (A)', color: '#38bdf8', font: { size: 10 } },
+                suggestedMin: 0,
+                suggestedMax: 60
+              },
+              y1: {
+                position: 'right',
+                grid: { drawOnChartArea: false },
+                ticks: { color: '#eab308', font: { size: 9 } },
+                title: { display: true, text: 'RPM', color: '#eab308', font: { size: 10 } },
+                suggestedMin: 0,
+                suggestedMax: 2000
+              }
+            }
+          }
+        });
+
+        // Chart 2: Power (kW) & Temp (°C)
+        const ctxPT = document.getElementById('chartPowerTemp').getContext('2d');
+        this.chartPT = new Chart(ctxPT, {
+          type: 'line',
+          data: {
+            labels: this.telemetryLabels,
+            datasets: [
+              {
+                label: 'Potencia Salida (kW)',
+                data: this.dataPower,
+                borderColor: '#f97316',
+                backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                borderWidth: 2,
+                tension: 0.2,
+                fill: true,
+                yAxisID: 'y'
+              },
+              {
+                label: 'Temperatura (°C)',
+                data: this.dataTemp,
+                borderColor: '#ef4444',
+                borderWidth: 2,
+                tension: 0.2,
+                yAxisID: 'y1'
+              }
+            ]
+          },
+          options: {
+            ...commonOptions,
+            scales: {
+              ...commonOptions.scales,
+              y: {
+                ...commonOptions.scales.y,
+                title: { display: true, text: 'kW', color: '#f97316', font: { size: 10 } },
+                suggestedMin: 0,
+                suggestedMax: 20
+              },
+              y1: {
+                position: 'right',
+                grid: { drawOnChartArea: false },
+                ticks: { color: '#ef4444', font: { size: 9 } },
+                title: { display: true, text: '°C', color: '#ef4444', font: { size: 10 } },
+                suggestedMin: 20,
+                suggestedMax: 120
+              }
+            }
+          }
+        });
+      }
+
+      updateCharts() {
+        // Shift buffers
+        this.dataCurrent.shift();
+        this.dataCurrent.push(parseFloat(this.current.toFixed(1)));
+
+        this.dataRPM.shift();
+        this.dataRPM.push(Math.round(this.rpm));
+
+        this.dataPower.shift();
+        this.dataPower.push(parseFloat(this.powerOut.toFixed(1)));
+
+        this.dataTemp.shift();
+        this.dataTemp.push(parseFloat(this.temperature.toFixed(1)));
+
+        // Update Charts
+        if (this.chartCR) this.chartCR.update();
+        if (this.chartPT) this.chartPT.update();
+      }
+
+      /* ==========================================================================
+         TOAST NOTIFICATION SYSTEM
+         ========================================================================== */
+      showToast(msg, type = "info") {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+
+        let bgColors = "bg-slate-900 border-slate-700 text-slate-200";
+        let icon = "fa-circle-info text-sky-400";
+
+        if (type === "success") {
+          bgColors = "bg-emerald-950/90 border-emerald-500/40 text-emerald-200";
+          icon = "fa-circle-check text-emerald-400";
+        } else if (type === "warning") {
+          bgColors = "bg-amber-950/90 border-amber-500/40 text-amber-200";
+          icon = "fa-triangle-exclamation text-amber-400";
+        } else if (type === "danger") {
+          bgColors = "bg-red-950/90 border-red-500/50 text-red-100";
+          icon = "fa-circle-xmark text-red-400";
+        }
+
+        toast.className = `p-3 rounded-xl border ${bgColors} shadow-xl text-xs font-semibold flex items-center gap-2.5 transition-all transform translate-y-2 pointer-events-auto`;
+        toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${msg}</span>`;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.classList.add('opacity-0', '-translate-y-2');
+          setTimeout(() => toast.remove(), 300);
+        }, 3500);
+      }
+    }
+
+    // Initialize Simulator Instance when window loads
+    let motor;
+    window.addEventListener('load', () => {
+      motor = new MotorSimulator();
+      motor.init();
+    });
+  </script>
+</body>
+</html>
